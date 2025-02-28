@@ -1,1 +1,0 @@
-/home/furry/Desktop/gazebo_simulation/src/myrobot_controller/myrobot_controller/simple_controller.py

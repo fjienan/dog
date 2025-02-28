@@ -1,1 +1,0 @@
-/home/furry/Desktop/gazebo_simulation/src/myrobot_controller/include/myrobot_controller/simple_controller.hpp

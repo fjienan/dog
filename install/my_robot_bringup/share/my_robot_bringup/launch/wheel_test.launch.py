@@ -1,1 +1,0 @@
-/home/furry/Desktop/gazebo_simulation/src/my_robot_bringup/launch/wheel_test.launch.py

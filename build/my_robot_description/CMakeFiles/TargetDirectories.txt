@@ -1,9 +1,0 @@
-/home/furry/Desktop/gazebo_simulation/build/my_robot_description/CMakeFiles/uninstall.dir
-/home/furry/Desktop/gazebo_simulation/build/my_robot_description/CMakeFiles/my_robot_description_uninstall.dir
-/home/furry/Desktop/gazebo_simulation/build/my_robot_description/CMakeFiles/test.dir
-/home/furry/Desktop/gazebo_simulation/build/my_robot_description/CMakeFiles/edit_cache.dir
-/home/furry/Desktop/gazebo_simulation/build/my_robot_description/CMakeFiles/rebuild_cache.dir
-/home/furry/Desktop/gazebo_simulation/build/my_robot_description/CMakeFiles/list_install_components.dir
-/home/furry/Desktop/gazebo_simulation/build/my_robot_description/CMakeFiles/install.dir
-/home/furry/Desktop/gazebo_simulation/build/my_robot_description/CMakeFiles/install/local.dir
-/home/furry/Desktop/gazebo_simulation/build/my_robot_description/CMakeFiles/install/strip.dir

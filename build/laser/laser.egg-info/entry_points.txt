@@ -1,4 +1,0 @@
-[console_scripts]
-laser = laser.get:main
-laser_position = laser.laser:main
-
