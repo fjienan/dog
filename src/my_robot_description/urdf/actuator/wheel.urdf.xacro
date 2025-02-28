@@ -1,0 +1,44 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro" >
+    <xacro:macro name="wheel_xacro" params="wheel_name xyz">
+            <!-- 机器人的IMU部件，惯性测量传感器 -->
+        <link name="${wheel_name}_link">
+            <visual>
+                <!-- 沿着自己几何中心的偏移和旋转量 -->
+                <origin xyz="0 0 0" rpy="1.57079 0 0"/>
+                <!-- 几何形状 -->
+                <geometry>
+                    <cylinder length="${length_wheel}" radius="${radius_wheel}"/>
+                </geometry>
+                <!-- 材质颜色 -->
+                <material name="yellow">
+                    <color rgba="1.0 1.0 0.0 0.8"/>
+                </material>
+            </visual>
+            <!-- 碰撞描述 -->
+            <collision>
+                <origin xyz="0 0 0" rpy="1.57079 0 0"/>
+                <geometry>
+                    <cylinder length="${length_wheel}" radius="${radius_wheel}"/>
+                </geometry>
+                <material name="yellow">
+                    <color rgba="1.0 1.0 0.0 0.8"/>
+                </material>
+            </collision>
+            <!-- 惯性描述 -->  
+            <mu1>0.5</mu1>
+            <mu2>0.5</mu2>
+            <xacro:cylinder_inertia m="0.5" r="${radius_wheel}" h="${length_wheel}"/>
+        </link>
+
+        <!-- 机器人的关节,用于组成 -->
+        <joint name="${wheel_name}_joint" type="continuous">
+            <parent link="base_link"/>
+            <child link="${wheel_name}_link"/>
+            <origin xyz="${xyz}" rpy="0 0 0"/>
+            <axis xyz="0 1 0"/>
+        </joint>
+
+
+    </xacro:macro>
+</robot>

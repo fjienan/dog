@@ -1,0 +1,108 @@
+-- The C compiler identification is GNU 11.4.0
+-- The CXX compiler identification is GNU 11.4.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Found ament_cmake: 1.3.11 (/opt/ros/humble/share/ament_cmake/cmake)
+-- Found Python3: /usr/bin/python3 (found version "3.10.12") found components: Interpreter 
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /home/furry/Desktop/gazebo_simulation/build/my_robot_description
+-- Install configuration: ""
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//worlds
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//worlds/new_vision.world
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//worlds/robocon25.world
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//worlds/basketball.world
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//models
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//models/model.config
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//models/basketball
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//models/basketball/model.config
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//models/basketball/basketball.sdf
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//models/basketball/model.dae
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//models/robot.model
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//models/RoboCon25_Field
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//models/RoboCon25_Field/model.config
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//models/RoboCon25_Field/model.sdf
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//models/RoboCon25_Field/materials
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//models/RoboCon25_Field/materials/textures
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//models/RoboCon25_Field/materials/textures/lines.png
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//models/RoboCon25_Field/materials/textures/carpet.jpg
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//models/RoboCon25_Field/materials/scripts
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//models/RoboCon25_Field/materials/scripts/robocon25_field.material
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//models/hoopC
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//models/hoopC/model.config
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//models/hoopC/model.dae
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//models/hoop2
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//models/hoop2/model.config
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//models/hoop2/model
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//models/hoop2/model/model.config
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//models/hoop2/model/BB2140.jpg
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//models/hoop2/model.dae
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//models/hoop2/hoop.sdf
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//models/hoop1
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//models/hoop1/model.config
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//models/hoop1/model
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//models/hoop1/model/model.config
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//models/hoop1/model/BB2140.jpg
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//models/hoop1/model.dae
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//models/hoop1/hoop.sdf
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//urdf
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//urdf/plugin
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//urdf/plugin/laser_plugin.xacro
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//urdf/plugin/imu_plugin copy.xacro
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//urdf/plugin/imu_plugin.xacro
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//urdf/plugin/laser_plugin_single.xacro
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//urdf/my_robot.urdf.xacro
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//urdf/color.xacro
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//urdf/common_inertia.xacro
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//urdf/my_robot.urdf_bak.xacro
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//urdf/actuator
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//urdf/actuator/wheel.urdf.xacro
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//urdf/sensor
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//urdf/sensor/laser.urdf.xacro
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//urdf/sensor/laser_single.urdf.xacro
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//urdf/sensor/imu.urdf.xacro
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//urdf/sensor/imu.urdf copy.xacro
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//urdf/myrobot_ros2_control.xacro
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//urdf/my_robot.urdf_bak1.xacro
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//urdf/舵轮底盘0.csv
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//urdf/my_robot.urdf1.xacro
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//launch
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//launch/load_world.launch.xml
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//launch/display.launch.xml
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//launch/control.launch.py
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//launch/load_world.launch.py
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//rviz
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//rviz/urdf_config.rviz
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//meshes
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//meshes/wheel2_2.STL
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//meshes/wheel3_3.STL
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//meshes/wheel1.STL
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//meshes/wheel2.STL
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//meshes/base_link.STL
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//meshes/wheel3.STL
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//meshes/wheel1_1.STL
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//config
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//config/joint_names_舵轮底盘0.yaml
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/ament_index/resource_index/package_run_dependencies/my_robot_description
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/ament_index/resource_index/parent_prefix_path/my_robot_description
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description/environment/ament_prefix_path.sh
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description/environment/ament_prefix_path.dsv
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description/environment/path.sh
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description/environment/path.dsv
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description/local_setup.bash
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description/local_setup.sh
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description/local_setup.zsh
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description/local_setup.dsv
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description/package.dsv
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/ament_index/resource_index/packages/my_robot_description
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description/cmake/my_robot_descriptionConfig.cmake
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description/cmake/my_robot_descriptionConfig-version.cmake
+-- Installing: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description/package.xml

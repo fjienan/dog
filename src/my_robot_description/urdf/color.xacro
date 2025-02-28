@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro" >
+
+  <gazebo reference="wheel_1">
+    <material>Gazebo/Red</material>
+  </gazebo>
+  <gazebo reference="wheel_2">
+    <material>Gazebo/Black</material>
+  </gazebo>
+  <gazebo reference="wheel_3">
+    <material>Gazebo/Red</material>
+  </gazebo>
+  <gazebo reference="wheel_4">
+    <material>Gazebo/Black</material>
+  </gazebo>
+  <gazebo reference="imu_link">
+    <material>Gazebo/BuildingFrame</material>
+  </gazebo>
+  <gazebo reference="livox_frame">
+    <material>Gazebo/LightBlueLaser</material>
+  </gazebo>
+</robot>

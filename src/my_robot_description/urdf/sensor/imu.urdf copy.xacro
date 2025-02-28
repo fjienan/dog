@@ -1,0 +1,41 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro" >
+    
+    <xacro:macro name="imu_link" params="xyz">
+            <!-- 机器人的IMU部件，惯性测量传感器 -->
+        <link name="imu_link">
+            <visual>
+                <!-- 沿着自己几何中心的偏移和旋转量 --> 
+                <origin xyz="0 0 0" rpy="0 0 0"/>
+                <!-- 几何形状 -->
+                <geometry>
+                    <!-- 长方体 长 宽 高 -->
+                    <box size="0.02 0.02 0.02"/>
+                </geometry>
+                <!-- 材质颜色 -->
+                <material name="black">
+                    <color rgba="0.0 0.0 0.0 1.0"/>
+                </material>
+            </visual>
+            <!-- 碰撞描述 -->
+            <collision>
+                <origin xyz="0 0 0" rpy="0 0 0"/>
+                <geometry>
+                    <box size="0.02 0.02 0.02"/>
+                </geometry>
+                <material name="black">
+                    <color rgba="0.0 0.0 0.0 1.0"/>
+                </material>
+            </collision>
+            <!-- 惯性描述 -->
+            <xacro:box_inertia m="0.05" w="0.02" h="0.02" d="0.02"/>
+        </link>
+
+        <!-- 机器人的关节,用于组成 -->
+        <joint name="imu_link_joint" type="fixed">
+            <parent link="base_link"/>
+            <child link="imu_link"/>
+            <origin xyz="${xyz}" rpy="0 0 0"/>
+        </joint>
+    </xacro:macro>
+</robot>

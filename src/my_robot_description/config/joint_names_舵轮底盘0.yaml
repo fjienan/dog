@@ -1,0 +1,14 @@
+controller_manager:
+  ros__parameters:
+    update_rate: 100  # Hz
+    
+    controllers:
+      joint_state_broadcaster:
+        type: joint_state_broadcaster/JointStateBroadcaster
+      wheel1_velocity_controller:
+        type: velocity_controllers/JointVelocityController
+
+wheel1_velocity_controller:
+  ros__parameters:
+    joint: base_wheel1
+    interface: velocity

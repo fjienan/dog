@@ -1,0 +1,1 @@
+/home/furry/Desktop/gazebo_simulation/src/my_robot_description/launch/load_world.launch.py

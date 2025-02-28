@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<launch>
+  <arg name="world" default="robocon25.world"/>
+  
+  <!-- 获取包的路径 -->
+  <let name="pkg_robocon25_sim" value="$(find-pkg-share my_robot_description)"/>
+  <let name="world_path" value="$(var pkg_robocon25_sim)/worlds/$(var world)"/>
+  <let name="urdf_path" value="$(var pkg_robocon25_sim)/urdf/my_robot.urdf"/>
+
+  <!-- 启动 Gazebo 并加载世界文件 -->
+  <include file="$(find-pkg-share gazebo_ros)/launch/gazebo.launch.xml">
+    <arg name="verbose" value="true"/>
+    <arg name="world" value="$(var world_path)"/>
+  </include>
+
+  <!-- 加载 URDF 模型到 Gazebo -->
+  <node pkg="gazebo_ros" exec="spawn_entity.py" output="screen">
+    <param name="entity" value="my_robot"/>
+    <param name="file" value="$(var urdf_path)"/>
+    <param name="x" value="0.0"/>
+    <param name="y" value="0.0"/>
+    <param name="z" value="0.5"/>
+  </node>
+</launch>

@@ -1,0 +1,5 @@
+failed to create symbolic link '/home/furry/Desktop/gazebo_simulation/build/myrobot_controller/ament_cmake_python/myrobot_controller/myrobot_controller' because existing path cannot be removed: Is a directory
+gmake[2]: *** [CMakeFiles/ament_cmake_python_symlink_myrobot_controller.dir/build.make:70：CMakeFiles/ament_cmake_python_symlink_myrobot_controller] 错误 1
+gmake[1]: *** [CMakeFiles/Makefile2:140：CMakeFiles/ament_cmake_python_symlink_myrobot_controller.dir/all] 错误 2
+gmake[1]: *** 正在等待未完成的任务....
+gmake: *** [Makefile:146：all] 错误 2

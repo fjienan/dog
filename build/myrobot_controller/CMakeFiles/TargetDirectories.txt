@@ -1,0 +1,12 @@
+/home/furry/Desktop/gazebo_simulation/build/myrobot_controller/CMakeFiles/uninstall.dir
+/home/furry/Desktop/gazebo_simulation/build/myrobot_controller/CMakeFiles/myrobot_controller_uninstall.dir
+/home/furry/Desktop/gazebo_simulation/build/myrobot_controller/CMakeFiles/ament_cmake_python_symlink_myrobot_controller.dir
+/home/furry/Desktop/gazebo_simulation/build/myrobot_controller/CMakeFiles/ament_cmake_python_build_myrobot_controller_egg.dir
+/home/furry/Desktop/gazebo_simulation/build/myrobot_controller/CMakeFiles/simple_controller.dir
+/home/furry/Desktop/gazebo_simulation/build/myrobot_controller/CMakeFiles/test.dir
+/home/furry/Desktop/gazebo_simulation/build/myrobot_controller/CMakeFiles/edit_cache.dir
+/home/furry/Desktop/gazebo_simulation/build/myrobot_controller/CMakeFiles/rebuild_cache.dir
+/home/furry/Desktop/gazebo_simulation/build/myrobot_controller/CMakeFiles/list_install_components.dir
+/home/furry/Desktop/gazebo_simulation/build/myrobot_controller/CMakeFiles/install.dir
+/home/furry/Desktop/gazebo_simulation/build/myrobot_controller/CMakeFiles/install/local.dir
+/home/furry/Desktop/gazebo_simulation/build/myrobot_controller/CMakeFiles/install/strip.dir

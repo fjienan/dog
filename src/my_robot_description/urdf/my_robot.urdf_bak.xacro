@@ -1,0 +1,468 @@
+<?xml version='1.0'?>
+<robot name="my_robot" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:include filename="$(find my_robot_description)/urdf/myrobot_ros2_control.xacro" />
+  <!-- 虚拟的根节点（用于全局定位） -->
+
+  <link name="world_link"/>
+
+  <!-- 虚拟关节，将 world_link 连接到 base_link，调整整体旋转 -->
+  <joint name="world_joint" type="fixed">
+    <origin xyz="1 1 1" rpy="0 -1.5708 0" /> <!-- 绕 Z 轴旋转 90 度 -->
+    <parent link="world_link" />
+    <child link="base_link" />
+  </joint>
+
+  <link
+    name="base_link">
+    <inertial>
+      <origin
+        xyz="-0.012503 0.15441 1.2733E-06"
+        rpy="0 0 0" />
+      <mass
+        value="2.9926" />
+      <inertia
+        ixx="0.0071612"
+        ixy="3.4189E-12"
+        ixz="-6.9784E-12"
+        iyy="0.0036971"
+        iyz="2.6949E-10"
+        izz="0.0035447" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="$(find my_robot_description)/meshes/base_link.STL" />
+
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.52941 0.54902 0.54902 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="$(find my_robot_description)/meshes/base_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <link
+    name="wheel1">
+    <inertial>
+      <origin
+        xyz="-0.042891 -0.00023895 0.010184"
+        rpy="0 0 0" />
+      <mass
+        value="2.9855" />
+      <inertia
+        ixx="0.001527"
+        ixy="1.1575E-05"
+        ixz="-2.795E-06"
+        iyy="0.0011138"
+        iyz="-1.1939E-05"
+        izz="0.0013147" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="$(find my_robot_description)/meshes/wheel1.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.77647 0.75686 0.73725 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="$(find my_robot_description)/meshes/wheel1.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="base_wheel1"
+    type="continuous">
+    <origin
+      xyz="-0.00299999999999984 -0.150775765619182 0"
+      rpy="2.1 0 0" />
+    <parent
+      link="base_link" />
+    <child
+      link="wheel1" />
+    <axis
+      xyz="-1 0 0" />
+  </joint>
+  <link
+    name="wheel1_1">
+    <inertial>
+      <origin
+        xyz="-4.588E-06 0.0014967 -0.035074"
+        rpy="0 0 0" />
+      <mass
+        value="0.93018" />
+      <inertia
+        ixx="0.0011543"
+        ixy="-3.2673E-08"
+        ixz="-9.8032E-09"
+        iyy="0.0011577"
+        iyz="-4.1516E-05"
+        izz="0.0021796" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="$(find my_robot_description)/meshes/wheel1_1.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.52941 0.54902 0.54902 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="$(find my_robot_description)/meshes/wheel1_1.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="wheel_wheel1"
+    type="continuous">
+    <origin
+      xyz="-0.110999999999989 -0.00140571886434757 0.0344713497628748"
+      rpy="0 0 0" />
+    <parent
+      link="wheel1" />
+    <child
+      link="wheel1_1" />
+    <axis
+      xyz="0 -0.0407454743289704 0.999169558344182" />
+  </joint>
+  <link
+    name="wheel2">
+    <inertial>
+      <origin
+        xyz="-0.042891 0.0089389 -0.0048849"
+        rpy="0 0 0" />
+      <mass
+        value="2.9855" />
+      <inertia
+        ixx="0.001527"
+        ixy="-8.2082E-06"
+        ixz="-8.6269E-06"
+        iyy="0.0012748"
+        iyz="-8.1009E-05"
+        izz="0.0011537" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="$(find my_robot_description)/meshes/wheel2.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.77647 0.75686 0.73725 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="$(find my_robot_description)/meshes/wheel2.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="base_wheel2"
+    type="continuous">
+    <origin
+      xyz="-0.00300000000000036 0.306937333383681 0.264258993872179"
+      rpy="1.05 0 0" />
+    <parent
+      link="base_link" />
+    <child
+      link="wheel2" />
+    <axis
+      xyz="-1 0 0" />
+  </joint>
+  <link
+    name="wheel2_2">
+    <inertial>
+      <origin
+        xyz="-4.5877E-06 -0.031123 0.016241"
+        rpy="0 0 0" />
+      <mass
+        value="0.93018" />
+      <inertia
+        ixx="0.0011543"
+        ixy="7.8513E-09"
+        ixz="3.3198E-08"
+        iyy="0.0019601"
+        iyz="-0.00042173"
+        izz="0.0013772" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="$(find my_robot_description)/meshes/wheel2_2.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.52941 0.54902 0.54902 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="$(find my_robot_description)/meshes/wheel2_2.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="wheel_wheel2"
+    type="continuous">
+    <origin
+      xyz="-0.110999999999989 0.0305559240295608 -0.0160182866343324"
+      rpy="0 0 0" />
+    <parent
+      link="wheel2" />
+    <child
+      link="wheel2_2" />
+    <axis
+      xyz="0 0.88567895737863 -0.464298163313945" />
+  </joint>
+  <link
+    name="wheel3">
+    <inertial>
+      <origin
+        xyz="-0.042891 -0.0087003 -0.0052982"
+        rpy="0 0 0" />
+      <mass
+        value="2.9855" />
+      <inertia
+        ixx="0.001527"
+        ixy="-3.3663E-06"
+        ixz="1.1422E-05"
+        iyy="0.0012542"
+        iyz="9.2943E-05"
+        izz="0.0011744" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="$(find my_robot_description)/meshes/wheel3.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.77647 0.75686 0.73725 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="$(find my_robot_description)/meshes/wheel3.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="base_wheel3"
+    type="continuous">
+    <origin
+      xyz="-0.00299999999999986 0.306937745652455 -0.264260701642284"
+      rpy="0 0 0" />
+    <parent
+      link="base_link" />
+    <child
+      link="wheel3" />
+    <axis
+      xyz="-1 0 0" />
+  </joint>
+  <link
+    name="wheel3_3">
+    <inertial>
+      <origin
+        xyz="-4.5881E-06 0.029628 0.018831"
+        rpy="0 0 0" />
+      <mass
+        value="0.93018" />
+      <inertia
+        ixx="0.0011543"
+        ixy="2.4827E-08"
+        ixz="-2.3398E-08"
+        iyy="0.0018882"
+        iyz="0.00046321"
+        izz="0.0014491" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="$(find my_robot_description)/meshes/wheel3_3.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.52941 0.54902 0.54902 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="$(find my_robot_description)/meshes/wheel3_3.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="wheel_wheel3"
+    type="continuous">
+    <origin
+      xyz="-0.110999999999989 -0.0291514432084487 -0.0184511072530776"
+      rpy="0 0 0" />
+    <parent
+      link="wheel3" />
+    <child
+      link="wheel3_3" />
+    <axis
+      xyz="0 -0.844969368360803 -0.534814702987815" />
+  </joint>
+
+  <!-- 加载 gazebo_ros_control 插件 -->
+  <!-- <gazebo>
+    <plugin name="gazebo_ros_control" filename="libgazebo_ros_control.so"/>
+  </gazebo> -->
+
+
+  <!-- 定义传动装置 -->
+  <!-- <transmission name="trans_wheel1">
+    <type>transmission_interface/SimpleTransmission</type>
+    <joint name="base_wheel1">
+      <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+    </joint>
+    <actuator name="wheel1_motor">
+      <mechanicalReduction>1</mechanicalReduction>
+    </actuator>
+  </transmission>
+
+  <transmission name="trans_wheel2">
+    <type>transmission_interface/SimpleTransmission</type>
+    <joint name="base_wheel2">
+      <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+    </joint>
+    <actuator name="wheel2_motor">
+      <mechanicalReduction>1</mechanicalReduction>
+    </actuator>
+  </transmission>
+
+  <transmission name="trans_wheel3">
+    <type>transmission_interface/SimpleTransmission</type>
+    <joint name="base_wheel3">
+      <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+    </joint>
+    <actuator name="wheel3_motor">
+      <mechanicalReduction>1</mechanicalReduction>
+    </actuator>
+  </transmission> -->
+  <transmission bane="wheel1_transmission">
+    <plugin>transmission_interface/SimpleTransmission</plugin>
+    <actuator name="wheel1_motor" role="actuator1"/>
+    <joint name="base_wheel1" role="joint1">
+      <mechanicalReduction>1.0</mechanicalReduction>
+    </joint>
+  </transmission>
+
+  <transmission bane="wheel2_transmission">
+    <plugin>transmission_interface/SimpleTransmission</plugin>
+    <actuator name="wheel2_motor" role="actuator2"/>
+    <joint name="base_wheel2" role="joint2">
+      <mechanicalReduction>1.0</mechanicalReduction>
+    </joint>
+  </transmission>
+
+  <transmission bane="wheel3_transmission">
+    <plugin>transmission_interface/SimpleTransmission</plugin>
+    <actuator name="wheel3_motor" role="actuator3"/>
+    <joint name="base_wheel3" role="joint3">
+      <mechanicalReduction>1.0</mechanicalReduction>
+    </joint>
+  </transmission>
+
+  <transmission bane="wheel11_transmission">
+    <plugin>transmission_interface/SimpleTransmission</plugin>
+    <actuator name="wheel11_motor" role="actuator11"/>
+    <joint name="wheel_wheel1" role="joint11">
+      <mechanicalReduction>1.0</mechanicalReduction>
+    </joint>
+  </transmission>
+
+  <transmission bane="wheel22_transmission">
+    <plugin>transmission_interface/SimpleTransmission</plugin>
+    <actuator name="wheel22_motor" role="actuator22"/>
+    <joint name="wheel_wheel2" role="joint22">
+      <mechanicalReduction>1.0</mechanicalReduction>
+    </joint>
+  </transmission>
+
+  <transmission bane="wheel33_transmission">
+    <plugin>transmission_interface/SimpleTransmission</plugin>
+    <actuator name="wheel33_motor" role="actuator33"/>
+    <joint name="wheel_wheel3" role="joint33">
+      <mechanicalReduction>1.0</mechanicalReduction>
+    </joint>
+  </transmission>
+
+  <gazebo>
+    <plugin filename="libgazebo_ros2_control.so" name="gazebo_ros2_control">
+      <robot_param>robot_description</robot_param>
+      <robot_param_node>robot_state_publisher</robot_param_node>
+      <parameters>$(find myrobot_controller)/config/myrobot_controllers.yaml</parameters>
+    </plugin>
+  </gazebo>
+
+</robot>

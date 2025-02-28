@@ -1,0 +1,83 @@
+[0.010s] Invoking command in '/home/furry/Desktop/gazebo_simulation/build/my_robot_description': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/furry/Desktop/gazebo_simulation/install/laser:/opt/ros/humble /usr/bin/cmake /home/furry/Desktop/gazebo_simulation/src/my_robot_description -DAMENT_CMAKE_SYMLINK_INSTALL=1 -DCMAKE_INSTALL_PREFIX=/home/furry/Desktop/gazebo_simulation/install/my_robot_description
+[0.167s] -- Found ament_cmake: 1.3.11 (/opt/ros/humble/share/ament_cmake/cmake)
+[0.168s] -- Override CMake install command with custom implementation using symlinks instead of copying resources
+[0.168s] -- Configuring done
+[0.168s] -- Generating done
+[0.168s] -- Build files have been written to: /home/furry/Desktop/gazebo_simulation/build/my_robot_description
+[0.171s] Invoked command in '/home/furry/Desktop/gazebo_simulation/build/my_robot_description' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/furry/Desktop/gazebo_simulation/install/laser:/opt/ros/humble /usr/bin/cmake /home/furry/Desktop/gazebo_simulation/src/my_robot_description -DAMENT_CMAKE_SYMLINK_INSTALL=1 -DCMAKE_INSTALL_PREFIX=/home/furry/Desktop/gazebo_simulation/install/my_robot_description
+[0.171s] Invoking command in '/home/furry/Desktop/gazebo_simulation/build/my_robot_description': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/furry/Desktop/gazebo_simulation/install/laser:/opt/ros/humble /usr/bin/cmake --build /home/furry/Desktop/gazebo_simulation/build/my_robot_description -- -j24 -l24
+[0.195s] Invoked command in '/home/furry/Desktop/gazebo_simulation/build/my_robot_description' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/furry/Desktop/gazebo_simulation/install/laser:/opt/ros/humble /usr/bin/cmake --build /home/furry/Desktop/gazebo_simulation/build/my_robot_description -- -j24 -l24
+[0.201s] Invoking command in '/home/furry/Desktop/gazebo_simulation/build/my_robot_description': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/furry/Desktop/gazebo_simulation/install/laser:/opt/ros/humble /usr/bin/cmake --install /home/furry/Desktop/gazebo_simulation/build/my_robot_description
+[0.206s] -- Install configuration: ""
+[0.207s] -- Execute custom install script
+[0.207s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//worlds/basketball.world
+[0.213s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//worlds/new_vision.world
+[0.218s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//worlds/robocon25.world
+[0.224s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//models/RoboCon25_Field/materials/scripts/robocon25_field.material
+[0.230s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//models/RoboCon25_Field/materials/textures/carpet.jpg
+[0.236s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//models/RoboCon25_Field/materials/textures/lines.png
+[0.243s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//models/RoboCon25_Field/model.config
+[0.249s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//models/RoboCon25_Field/model.sdf
+[0.255s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//models/basketball/basketball.sdf
+[0.260s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//models/basketball/model.config
+[0.267s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//models/basketball/model.dae
+[0.274s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//models/hoop1/hoop.sdf
+[0.279s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//models/hoop1/model.config
+[0.285s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//models/hoop1/model.dae
+[0.291s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//models/hoop1/model/BB2140.jpg
+[0.296s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//models/hoop1/model/model.config
+[0.302s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//models/hoop2/hoop.sdf
+[0.308s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//models/hoop2/model.config
+[0.314s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//models/hoop2/model.dae
+[0.320s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//models/hoop2/model/BB2140.jpg
+[0.326s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//models/hoop2/model/model.config
+[0.331s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//models/hoopC/model.config
+[0.337s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//models/hoopC/model.dae
+[0.343s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//models/model.config
+[0.348s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//models/robot.model
+[0.355s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//urdf/actuator/wheel.urdf.xacro
+[0.362s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//urdf/color.xacro
+[0.368s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//urdf/common_inertia.xacro
+[0.373s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//urdf/my_robot.urdf.xacro
+[0.379s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//urdf/my_robot.urdf1.xacro
+[0.385s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//urdf/my_robot.urdf_bak.xacro
+[0.390s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//urdf/my_robot.urdf_bak1.xacro
+[0.395s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//urdf/myrobot_ros2_control.xacro
+[0.400s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//urdf/plugin/imu_plugin copy.xacro
+[0.406s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//urdf/plugin/imu_plugin.xacro
+[0.414s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//urdf/plugin/laser_plugin.xacro
+[0.420s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//urdf/plugin/laser_plugin_single.xacro
+[0.425s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//urdf/sensor/imu.urdf copy.xacro
+[0.432s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//urdf/sensor/imu.urdf.xacro
+[0.438s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//urdf/sensor/laser.urdf.xacro
+[0.443s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//urdf/sensor/laser_single.urdf.xacro
+[0.449s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//urdf/舵轮底盘0.csv
+[0.455s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//launch/control.launch.py
+[0.461s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//launch/display.launch.xml
+[0.467s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//launch/load_world.launch.py
+[0.474s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//launch/load_world.launch.xml
+[0.480s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//rviz/urdf_config.rviz
+[0.485s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//meshes/base_link.STL
+[0.490s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//meshes/wheel1.STL
+[0.497s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//meshes/wheel1_1.STL
+[0.504s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//meshes/wheel2.STL
+[0.511s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//meshes/wheel2_2.STL
+[0.518s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//meshes/wheel3.STL
+[0.526s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//meshes/wheel3_3.STL
+[0.533s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description//config/joint_names_舵轮底盘0.yaml
+[0.538s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/ament_index/resource_index/package_run_dependencies/my_robot_description
+[0.544s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/ament_index/resource_index/parent_prefix_path/my_robot_description
+[0.549s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description/environment/ament_prefix_path.sh
+[0.555s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description/environment/ament_prefix_path.dsv
+[0.560s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description/environment/path.sh
+[0.566s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description/environment/path.dsv
+[0.571s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description/local_setup.bash
+[0.576s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description/local_setup.sh
+[0.581s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description/local_setup.zsh
+[0.586s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description/local_setup.dsv
+[0.592s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description/package.dsv
+[0.598s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/ament_index/resource_index/packages/my_robot_description
+[0.604s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description/cmake/my_robot_descriptionConfig.cmake
+[0.612s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description/cmake/my_robot_descriptionConfig-version.cmake
+[0.619s] -- Symlinking: /home/furry/Desktop/gazebo_simulation/install/my_robot_description/share/my_robot_description/package.xml
+[0.628s] Invoked command in '/home/furry/Desktop/gazebo_simulation/build/my_robot_description' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/furry/Desktop/gazebo_simulation/install/laser:/opt/ros/humble /usr/bin/cmake --install /home/furry/Desktop/gazebo_simulation/build/my_robot_description

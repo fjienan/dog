@@ -1,0 +1,2 @@
+Invoking command in '/home/fideow/ros2_ws/src/robocon25_sim/build/robocon25_sim': /usr/bin/cmake /home/fideow/ros2_ws/src/robocon25_sim -DCMAKE_INSTALL_PREFIX=/home/fideow/ros2_ws/src/robocon25_sim/install/robocon25_sim
+Invoked command in '/home/fideow/ros2_ws/src/robocon25_sim/build/robocon25_sim' returned '1': /usr/bin/cmake /home/fideow/ros2_ws/src/robocon25_sim -DCMAKE_INSTALL_PREFIX=/home/fideow/ros2_ws/src/robocon25_sim/install/robocon25_sim

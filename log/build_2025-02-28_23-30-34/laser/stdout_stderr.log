@@ -1,0 +1,18 @@
+running develop
+running egg_info
+writing laser.egg-info/PKG-INFO
+writing dependency_links to laser.egg-info/dependency_links.txt
+writing entry points to laser.egg-info/entry_points.txt
+writing requirements to laser.egg-info/requires.txt
+writing top-level names to laser.egg-info/top_level.txt
+reading manifest file 'laser.egg-info/SOURCES.txt'
+writing manifest file 'laser.egg-info/SOURCES.txt'
+running build_ext
+Creating /home/furry/Desktop/gazebo_simulation/install/laser/lib/python3.10/site-packages/laser.egg-link (link to .)
+Installing laser script to /home/furry/Desktop/gazebo_simulation/install/laser/lib/laser
+Installing laser_position script to /home/furry/Desktop/gazebo_simulation/install/laser/lib/laser
+
+Installed /home/furry/Desktop/gazebo_simulation/build/laser
+running symlink_data
+symbolically linking /home/furry/Desktop/gazebo_simulation/build/laser/resource/laser -> /home/furry/Desktop/gazebo_simulation/install/laser/share/ament_index/resource_index/packages
+symbolically linking /home/furry/Desktop/gazebo_simulation/build/laser/package.xml -> /home/furry/Desktop/gazebo_simulation/install/laser/share/laser

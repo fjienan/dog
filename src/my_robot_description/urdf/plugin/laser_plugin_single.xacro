@@ -1,0 +1,45 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+<xacro:macro name="gazebo_laser_single_plugin" params="name">
+        <gazebo reference="${name}">
+            <sensor name="laserscan_${name}" type="ray">
+                <plugin name="laserscan_${name}" filename="libgazebo_ros_ray_sensor.so">
+                    <ros>
+                        <namespace>/</namespace>
+                        <remapping>~/out:=scan_${name}</remapping>
+                    </ros>
+                    <output_type>sensor_msgs/LaserScan</output_type>
+                    <frame_name>${name}</frame_name>
+                </plugin>
+                <always_on>true</always_on>
+                <visualize>true</visualize>
+                <update_rate>40</update_rate>
+                <pose>0 0 0 0 0 0</pose>
+                <!-- 激光传感器配置 -->
+            <ray>
+                <!-- 设置扫描范围 -->
+                <scan>
+                    <horizontal>
+                        <samples>1</samples>
+                        <resolution>1</resolution>
+                        <min_angle>0.000000</min_angle>
+                        <max_angle>0</max_angle>
+                    </horizontal>
+                    </scan>
+                    <!-- 设置扫描距离 -->
+                    <range>
+                        <min>0.830000</min>
+                        <max>20.0</max>
+                        <resolution>0.015000</resolution>
+                    </range>
+                    <!-- 设置噪声 -->
+                    <noise>
+                        <type>gaussian</type>
+                        <mean>0.0</mean>
+                        <stddev>0.01</stddev>
+                    </noise>
+                </ray>
+            </sensor>
+        </gazebo>
+</xacro:macro>
+</robot>

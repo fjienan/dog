@@ -1,0 +1,44 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro" >
+    <xacro:macro name="laser_single_link" params="xyz yaw name">
+            <!-- 雷达 -->
+            <link name="${name}">
+                <visual>
+                    <origin xyz="0 0 0" rpy="0 0 0"/>
+                    <geometry>
+                        <cylinder length="0.02" radius="0.02"/>
+                    </geometry>
+                    <material name="black">
+                        <color rgba="0.0 0.0 0.0 1.0"/>
+                    </material>
+                </visual>
+                <!-- 碰撞描述 -->
+                <collision>
+                    <origin xyz="0 0 0" rpy="0 0 0"/>
+                    <geometry>
+                        <cylinder length="0.02" radius="0.02"/>
+                    </geometry>
+                    <material name="black">
+                        <color rgba="0.0 0.0 0.0 1.0"/>
+                    </material>
+                </collision>
+                <!-- 惯性描述 -->
+                <xacro:cylinder_inertia m="0.1" r="0.02" h="0.02"/>
+            </link> 
+            
+
+            <!-- 支撑杆与baselink的关节 -->
+            <joint name="laser_joint_${name}" type="fixed">
+                <parent link="base_link"/>
+                <child link="${name}"/>
+                <origin xyz="${xyz}" rpy="0 0 ${yaw}"/>
+            </joint>
+            
+            <gazebo reference="${name}">
+                <material>Gazebo/Black</material>
+            </gazebo>
+
+
+                
+            </xacro:macro>
+</robot>

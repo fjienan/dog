@@ -1,0 +1,33 @@
+[0.007s] Invoking command in '/home/fideow/ros2_ws/src/robocon25_sim/build/robocon25_sim': /usr/bin/cmake /home/fideow/ros2_ws/src/robocon25_sim -DCMAKE_INSTALL_PREFIX=/home/fideow/ros2_ws/src/robocon25_sim/install/robocon25_sim
+[0.095s] -- The C compiler identification is GNU 11.4.0
+[0.162s] -- The CXX compiler identification is GNU 11.4.0
+[0.168s] -- Detecting C compiler ABI info
+[0.232s] -- Detecting C compiler ABI info - done
+[0.238s] -- Check for working C compiler: /usr/bin/cc - skipped
+[0.238s] -- Detecting C compile features
+[0.239s] -- Detecting C compile features - done
+[0.243s] -- Detecting CXX compiler ABI info
+[0.311s] -- Detecting CXX compiler ABI info - done
+[0.317s] -- Check for working CXX compiler: /usr/bin/c++ - skipped
+[0.317s] -- Detecting CXX compile features
+[0.318s] -- Detecting CXX compile features - done
+[0.328s] [31mCMake Error at CMakeLists.txt:9 (find_package):
+[0.328s]   By not providing "Findament_cmake.cmake" in CMAKE_MODULE_PATH this project
+[0.328s]   has asked CMake to find a package configuration file provided by
+[0.328s]   "ament_cmake", but CMake did not find one.
+[0.328s] 
+[0.328s]   Could not find a package configuration file provided by "ament_cmake" with
+[0.328s]   any of the following names:
+[0.328s] 
+[0.328s]     ament_cmakeConfig.cmake
+[0.328s]     ament_cmake-config.cmake
+[0.328s] 
+[0.328s]   Add the installation prefix of "ament_cmake" to CMAKE_PREFIX_PATH or set
+[0.328s]   "ament_cmake_DIR" to a directory containing one of the above files.  If
+[0.328s]   "ament_cmake" provides a separate development package or SDK, be sure it
+[0.329s]   has been installed.
+[0.329s] 
+[0.329s] [0m
+[0.329s] -- Configuring incomplete, errors occurred!
+[0.329s] See also "/home/fideow/ros2_ws/src/robocon25_sim/build/robocon25_sim/CMakeFiles/CMakeOutput.log".
+[0.331s] Invoked command in '/home/fideow/ros2_ws/src/robocon25_sim/build/robocon25_sim' returned '1': /usr/bin/cmake /home/fideow/ros2_ws/src/robocon25_sim -DCMAKE_INSTALL_PREFIX=/home/fideow/ros2_ws/src/robocon25_sim/install/robocon25_sim

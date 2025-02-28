@@ -1,0 +1,133 @@
+<?xml version="1.0"?>
+
+<robot name="robot" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+<!-- 加载xacro文件 -->
+<xacro:include filename="$(find my_robot_description)/urdf/common_inertia.xacro"/>
+<xacro:include filename="$(find my_robot_description)/urdf/actuator/wheel.urdf.xacro"/>
+
+  <xacro:property name="length_wheel" value="0.05" />
+  <xacro:property name="radius_wheel" value="0.06" />
+  <xacro:property name="PI" value="3.1415926"/>
+  <xacro:property name="dummy_joint_xyz" value="1 1 0.02" />
+  <xacro:property name="base_link_size" value="0.42 0.86 0.12" />
+
+<!-- <xacro:arg name="color" default="white"/> -->
+
+  <xacro:macro name="default_inertial" params="mass">
+    <inertial>
+      <mass value="${mass}" />
+      <inertia ixx="0.01" ixy="0.0" ixz="0.0"
+                    iyy="0.01" iyz="0.0" izz="0.01" />
+    </inertial>
+  </xacro:macro>
+
+  <!-- base_link to livox_frame -->
+  <xacro:arg name="xyz" default="0.12 0.0 0.175" />
+  <xacro:arg name="rpy" default="0 0 0" />
+
+  <link name="dummy"/>
+
+  <link name="base_link">
+    <visual>
+      <geometry>
+        <box size="${base_link_size}"/>
+
+      </geometry>
+      <origin rpy="0 0 ${PI/2}" xyz="0 0 0.05"/>
+      <material name="white">
+        <color rgba="1 1 1 1"/>
+      </material>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="${base_link_size}"/>
+      </geometry>
+      <origin rpy="0 0 ${PI/2}" xyz="0 0 0.05"/>
+    </collision>
+    <xacro:default_inertial mass="8.2"/>
+  </link>
+
+  <joint name="dummy_joint" type="fixed">
+     <parent link="dummy"/>
+     <child link="base_link"/>
+     <origin xyz="${dummy_joint_xyz}" rpy="0 0 0"/>
+  </joint>
+
+  <!-- 轮子 -->
+  <xacro:property name="y" value="0.22" />
+  <xacro:property name="x" value="0.43" />
+
+  <xacro:wheel_xacro wheel_name="wheel_1" xyz="${x} ${y} 0" />
+  <xacro:wheel_xacro wheel_name="wheel_2" xyz="-${x} ${y} 0" />
+  <xacro:wheel_xacro wheel_name="wheel_3" xyz="${x} -${y} 0" />
+  <xacro:wheel_xacro wheel_name="wheel_4" xyz="-${x} -${y} 0" />
+
+  
+<!-- 颜色设置 -->
+<xacro:include filename="$(find my_robot_description)/urdf/color.xacro" />
+  <gazebo reference="base_link">
+    <material>Gazebo/$(arg color)</material>
+  </gazebo>
+ 
+
+  <!-- Drive controller plugin-->
+  <!-- https://github.com/ros-simulation/gazebo_ros_pkgs/wiki/ROS-2-Migration:-Planar-Move -->
+  <gazebo>
+    <plugin name="mecanum_controller" filename="libgazebo_ros_planar_move.so">
+      <ros>
+        <!-- Add a namespace -->
+        <namespace>/</namespace>
+        <!-- Remap the default topic -->
+        <remapping>cmd_vel:=cmd_vel</remapping>
+        <remapping>odom:=odom</remapping>
+      </ros>
+
+      <!-- Set control loop update rate -->
+      <update_rate>100</update_rate>
+      <!-- Set odom publish rate -->
+      <publish_rate>10</publish_rate>
+
+      <!-- Set if odom required -->
+      <publish_odom>false</publish_odom>
+      <publish_odom_tf>false</publish_odom_tf>
+
+      <!-- Frame IDs -->
+      <odometry_frame>odom</odometry_frame>
+      <robot_base_frame>base_link</robot_base_frame>
+
+      <!-- Set odom covariance -->
+      <covariance_x>0.0001</covariance_x>
+      <covariance_y>0.0001</covariance_y>
+      <covariance_yaw>0.01</covariance_yaw>
+    </plugin>
+  </gazebo>
+
+ <!--传感器加载  -->
+ <xacro:include filename="$(find my_robot_description)/urdf/sensor/imu.urdf.xacro" />
+ <xacro:include filename="$(find my_robot_description)/urdf/sensor/laser.urdf.xacro" />
+ <xacro:include filename="$(find my_robot_description)/urdf/sensor/laser_single.urdf.xacro" />
+
+ <!-- 插件加载 -->
+ <xacro:include filename="$(find my_robot_description)/urdf/plugin/imu_plugin.xacro" />
+ <xacro:include filename="$(find my_robot_description)/urdf/plugin/laser_plugin.xacro" />
+ <xacro:include filename="$(find my_robot_description)/urdf/plugin/laser_plugin_single.xacro" />
+
+<!-- 放入仿真 -->
+<xacro:imu_link xyz="0 0 0.02"/>
+<xacro:laser_link xyz="0 0 0"/>
+<xacro:laser_single_link xyz="0 0 0.02" yaw="0" name="fivelaser1"/>
+<xacro:laser_single_link xyz="0 0 0.02" yaw="${2*PI/5}" name="fivelaser2"/>
+<xacro:laser_single_link xyz="0 0 0.02" yaw="${4*PI/5}" name="fivelaser3"/>
+<xacro:laser_single_link xyz="0 0 0.02" yaw="${6*PI/5}" name="fivelaser4"/>
+<xacro:laser_single_link xyz="0 0 0.02" yaw="${8*PI/5}" name="fivelaser5"/> 
+<!-- 加载gazebo插件 -->
+<xacro:gazebo_imu_plugin/>
+<xacro:gazebo_laser_plugin />
+<xacro:gazebo_laser_single_plugin  name="fivelaser1" />
+<xacro:gazebo_laser_single_plugin  name="fivelaser2" />
+<xacro:gazebo_laser_single_plugin  name="fivelaser3" />
+<xacro:gazebo_laser_single_plugin  name="fivelaser4" />
+<xacro:gazebo_laser_single_plugin  name="fivelaser5" />
+
+</robot>
