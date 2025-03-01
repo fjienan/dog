@@ -21,7 +21,7 @@ setup(
     entry_points={
         'console_scripts': [
             "laser=laser.get:main",
-            "laser_position=laser.laser:main",
+            "laser_position=laser.Real:main",
         ],
     },
 )
