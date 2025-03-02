@@ -295,12 +295,10 @@ class EstRobot:
 ############################################
 class KalmanFilter:
 
-	def __init__(self,estrobot,real,dt=DT, process_noise_cov=np.eye(5), measurement_noise_cov=np.eye(3), state_cov=np.eye(5), initial_state_vector=[0, 0, 0, 0, 0],position=[0, 0],angle=0, state_dim=5):
+	def __init__(self,estrobot,real,dt=DT, process_noise_cov=np.eye(5), measurement_noise_cov=np.eye(3), state_cov=np.eye(5), initial_state_vector=[0, 0, 0, 0, 0]):
 		self.estrobot=estrobot
 		self.real=real
-		position, angle = self.estrobot.update_laser()
 		self.dt = dt  # Time step
-		self.state_dim = state_dim
 		
 		# Initialize state vector [x, x_vel, y, y_vel, angle, angular_vel]
 		self.state = np.array(initial_state_vector).reshape((5, 1))
