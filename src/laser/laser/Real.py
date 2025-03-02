@@ -18,15 +18,16 @@ from laser_interfaces.msg import LaserPosition
 # rcParams['axes.unicode_minus'] = False
 
 # 模拟参数
-imu_data_flag = 1
+imu_data_flag = 1 			# 是否有IMU数据
 R = 1.0                     # Meaurement noise value
 Q = 1
 DT = 0.02                      # IMU 时间步长
 FIELD_SIZE = [15, 8]           # 场地大小
 MAX_SPEED = 0.5                # 最大速度 m/s
-TURN_RATE = np.deg2rad(30)     # 转向速度 rad/s
 LASER_ANGLES = [0, np.deg2rad(72), np.deg2rad(144), np.deg2rad(216), np.deg2rad(288)]
 START_POINT = [7.5, 4.0]       # 初始位置
+LASER_ALLOWED_NOISE = 0.3      # 激光测量允许的噪声
+
 class MinimalPublisher(Node):
 	def __init__(self,kalman_filter):
 		self.kalman_filter=kalman_filter
@@ -51,10 +52,9 @@ def main(args=None):
 	rclpy.init(args=args)
 	
 	real = Real()
-	realrobot = RealRobot()
 	# laser_obstacle = Laser_obstacle(real,realrobot)
-	estrobot = EstRobot(real,realrobot)
-	kalman_filter = KalmanFilter(estrobot,real,realrobot)
+	estrobot = EstRobot(real)
+	kalman_filter = KalmanFilter(estrobot, real)
 	minimal_publisher = MinimalPublisher(kalman_filter)
 	rclpy.spin(minimal_publisher)
 	minimal_publisher.destroy_node()
@@ -62,7 +62,6 @@ def main(args=None):
 
 if __name__ == '__main__':
 	main()
-
 
 class Real(Node):
 	def __init__(self):
@@ -83,7 +82,6 @@ class Real(Node):
 		self.subscriptions  # 防止未使用的变量警告
 		
 	def scan_callback(self, msg):
-		# 获取激光雷达数据并且进行可视化，使用matplotlib
 		self.get_logger().info('scan received')
 		# 计算距离最近的障碍物距离
 		ranges = np.array(msg.ranges)
@@ -104,7 +102,6 @@ class Real(Node):
 		# 计算距离最近的障碍物距离
 		ranges = np.array(msg.ranges)
 		self.real_laser = [ranges[0], ranges[72], ranges[144], ranges[216], ranges[288]]
-		
 
 	def listener_callback(self, msg):
 		# 从消息中获取四元数
@@ -128,81 +125,70 @@ class Real(Node):
 		# 打印 yaw 角
 		self.get_logger().info(f"Yaw angle from IMU: {self.yaw}")
 
-class RealRobot:##获取理论激光长度
-	# # 噪声参数
-	# GYRO_NOISE = 0.01              # rad/s
-	# ACCEL_NOISE = 0.01             # m/s²
-	LASER_NOISE = 0.0             # m
+# class RealRobot: # 获取理论激光长度
+# 	def __init__(self):
+# 		# 真实状态
+# 		self.yaw = 0.0                      # 初始朝向（弧度）
+# 		self.pos = np.array(START_POINT)    # 初始位置 (x,y)
+# 		self.vel = 0.0                      # 初始速度
+# 		# 控制参数
+# 		self.acceleration = 0.3             # 加速度 m/s²
+# 		self.turning = 0.0                  # 转向速度
+# 		self.acc = 0.0                      # 当前加速度
+# 	def get_laser(self, id):
+# 		laser_yaw = (LASER_ANGLES[id] + self.yaw) % (2 * np.pi)
+# 		if laser_yaw == 0:
+# 			return FIELD_SIZE[0] - self.pos[0] + np.random.normal(0, self.LASER_NOISE)
+# 		elif laser_yaw == np.pi:
+# 			return self.pos[0] + np.random.normal(0, self.LASER_NOISE)
+# 		elif laser_yaw == np.pi / 2:
+# 			return FIELD_SIZE[1] - self.pos[1] + np.random.normal(0, self.LASER_NOISE)
+# 		elif laser_yaw == -np.pi / 2:
+# 			return self.pos[1] + np.random.normal(0, self.LASER_NOISE)
+# 		else:
+# 			d_x = (FIELD_SIZE[0] - self.pos[0]) / np.cos(laser_yaw) if np.cos(laser_yaw) > 0 else -self.pos[0] / np.cos(laser_yaw)
+# 			d_y = (FIELD_SIZE[1] - self.pos[1]) / np.sin(laser_yaw) if np.sin(laser_yaw) > 0 else -self.pos[1] / np.sin(laser_yaw)
+# 			return d_x if d_x < d_y else d_y
 
-	def __init__(self):
-		# 真实状态
-		self.yaw = 0.0                    # 初始朝向（弧度）
-		self.pos = np.array(START_POINT)    # 初始位置 (x,y)
-		self.vel = 0.0                      # 初始速度
-		# 控制参数
-		self.acceleration = 0.3             # 加速度 m/s²
-		self.turning = 0.0                  # 转向速度
-		self.acc = 0.0                      # 当前加速度
-	def get_laser(self, id):
-		laser_yaw = (LASER_ANGLES[id] + self.yaw) % (2 * np.pi)
-		if laser_yaw == 0:
-			return FIELD_SIZE[0] - self.pos[0] + np.random.normal(0, self.LASER_NOISE)
-		elif laser_yaw == np.pi:
-			return self.pos[0] + np.random.normal(0, self.LASER_NOISE)
-		elif laser_yaw == np.pi / 2:
-			return FIELD_SIZE[1] - self.pos[1] + np.random.normal(0, self.LASER_NOISE)
-		elif laser_yaw == -np.pi / 2:
-			return self.pos[1] + np.random.normal(0, self.LASER_NOISE)
-		else:
-			d_x = (FIELD_SIZE[0] - self.pos[0]) / np.cos(laser_yaw) if np.cos(laser_yaw) > 0 else -self.pos[0] / np.cos(laser_yaw)
-			d_y = (FIELD_SIZE[1] - self.pos[1]) / np.sin(laser_yaw) if np.sin(laser_yaw) > 0 else -self.pos[1] / np.sin(laser_yaw)
-			return d_x if d_x < d_y else d_y
-
-	def get_time(self):
-		return time.time()
-
+# 	def get_time(self):
+# 		return time.time()
 
 ############################################
 class EstRobot:
-	def __init__(self,real,realrobot):
-		self.realrobot=realrobot
-		# self.laser_obstacle=laser_obstacle
-		self.real=real
+	def __init__(self, real):
+		# self.realrobot = realrobot
+		self.real = real
 		self.est_yaw = 0.0
 		self.est_pos = np.array(START_POINT)
 		self.est_vel = 0.0
-		# self.laser_obstacle=Laser_obstacle()
-	def update_imu(self,yaw_rate, yaw_acc, dt):
-		# 更新朝向（陀螺仪积分）
-		yaw_rate = self.real.yaw_rate
-		# yaw_acc = self.real.yaw_acc
-		self.est_yaw += yaw_rate * dt
+
+	def update_imu(self, acc_body, yaw_acc, dt):
+		# 更新角速度（角加速度积分）
+		self.yaw_rate += yaw_acc * dt
+
+		# 更新朝向（角速度积分）
+		self.est_yaw += self.yaw_rate * dt
 		self.est_yaw %= 2 * np.pi
-		
-		# 将加速度转换到全局坐标系
-		# 在EstRobot的update_imu方法中修改：
+
+		# 将本体系加速度转换到全局坐标系
 		R = np.array([[np.cos(self.est_yaw), -np.sin(self.est_yaw)], 
 					[np.sin(self.est_yaw), np.cos(self.est_yaw)]])
-		# 将本体系加速度转换为全局坐标系
-		acc_global = R @ np.array([self.real.acc_x, self.real.acc_y])
+		acc_global = R @ acc_body
 		ax_global, ay_global = acc_global[0], acc_global[1]
-		
+
 		# 更新全局速度
-		self.est_vel_x += ax_global * DT
-		self.est_vel_y += ay_global * DT
-		# 限制速度
-		self.est_vel_x = np.clip(self.est_vel_x, -MAX_SPEED, MAX_SPEED)
-		self.est_vel_y = np.clip(self.est_vel_y, -MAX_SPEED, MAX_SPEED)
+		self.est_vel_x += ax_global * dt
+		self.est_vel_y += ay_global * dt
+
+		# 限制速度范围
+		# self.est_vel_x = np.clip(...)
+
 		# 更新位置
-		self.est_pos[0] += self.est_vel_x * DT + 0.5 * ax_global * DT**2
-		self.est_pos[1] += self.est_vel_y * DT + 0.5 * ay_global * DT**2
-		
-		# # 检查边界
-		# if self.est_pos[0] < 0 or self.est_pos[0] > FIELD_SIZE[0] or self.est_pos[1] < 0 or self.est_pos[1] > FIELD_SIZE[1]:
-		# 	self.est_vel = 0.0
-		# 	self.est_pos = np.clip(self.est_pos, [0, 0], FIELD_SIZE)
-		
-		return self.est_pos, self.est_yaw
+		self.est_pos[0] += self.est_vel_x * dt + 0.5 * ax_global * dt**2
+		self.est_pos[1] += self.est_vel_y * dt + 0.5 * ay_global * dt**2
+
+		# 检查位置边界
+		# self.est_pos = np.clip(...)
 
 	def update_laser(self):
 		laser_x = []
@@ -210,18 +196,30 @@ class EstRobot:
 		data = []
 		up_width = []
 		down_width = []
+		flag = [0] * len(LASER_ANGLES)
 
 		for i in range(len(LASER_ANGLES)):
 			data.append(self.realrobot.get_laser(i))
 			laser_yaw = (LASER_ANGLES[i] + self.est_yaw) % (2 * np.pi)
-			if laser_yaw % (np.pi / 2) != 0:
+			if laser_yaw == 0:
+				thorey_length = FIELD_SIZE[0] - self.pos[0]
+			elif laser_yaw == np.pi:
+				thorey_length =  self.pos[0]
+			elif laser_yaw == np.pi / 2:
+				thorey_length =  FIELD_SIZE[1] - self.pos[1]
+			elif laser_yaw == -np.pi / 2:
+				thorey_length =  self.pos[1]
+			else:
 				d_x = (FIELD_SIZE[0] - self.est_pos[0]) / np.cos(laser_yaw) if np.cos(laser_yaw) > 0 else -self.est_pos[0] / np.cos(laser_yaw)
 				d_y = (FIELD_SIZE[1] - self.est_pos[1]) / np.sin(laser_yaw) if np.sin(laser_yaw) > 0 else -self.est_pos[1] / np.sin(laser_yaw)
-				if d_x > d_y:
+				thorey_length = d_x if d_x < d_y else d_y
+				if abs(data[i] - thorey_length) <= LASER_ALLOWED_NOISE and d_x > d_y:
 					if np.sin(laser_yaw) > 0:
 						up_width.append([data[i], i])
 					else:
 						down_width.append([data[i], i])
+			if abs(data[i] - thorey_length) > LASER_ALLOWED_NOISE:
+				flag[i] = 1
 
 		def func(angle):
 			lengh_massure_1 = []
@@ -233,29 +231,30 @@ class EstRobot:
 				lengh_massure_2.append(abs(dis * np.sin(angle + LASER_ANGLES[id])))  # 点到下边界的距离
 			mean_lengh_massure_2 = np.mean(lengh_massure_2)
 			return mean_lengh_massure_1 + mean_lengh_massure_2 - FIELD_SIZE[1]
+
 		laser_est_yaw = fsolve(func, x0=self.est_yaw)[0]  # x0 是浮点初始猜测
 		laser_est_yaw %= 2 * np.pi
-		
+
 		for i in range(len(LASER_ANGLES)):
-			# if i in self.laser_obstacle.laser_theory_length():
-			# 	continue
-			# else:
-			single_yaw = (LASER_ANGLES[i] + laser_est_yaw) % (2 * np.pi)
-			if single_yaw == 0:
-				laser_x.append(FIELD_SIZE[0] - data[i])
-			elif single_yaw == np.pi:
-				laser_x.append(data[i])
-			elif single_yaw == np.pi / 2:
-				laser_y.append(FIELD_SIZE[1] - data[i])
-			elif single_yaw == np.pi * 3 / 2:
-				laser_y.append(data[i])
+			if flag[i] == 1:
+				continue
 			else:
-				d_x = (FIELD_SIZE[0] - self.est_pos[0]) / np.cos(single_yaw) if np.cos(single_yaw) > 0 else -self.est_pos[0] / np.cos(single_yaw)
-				d_y = (FIELD_SIZE[1] - self.est_pos[1]) / np.sin(single_yaw) if np.sin(single_yaw) > 0 else -self.est_pos[1] / np.sin(single_yaw)
-				if d_x < d_y:
-					laser_x.append(FIELD_SIZE[0] - data[i] * np.cos(single_yaw) if np.cos(single_yaw) > 0 else -data[i] * np.cos(single_yaw))
+				single_yaw = (LASER_ANGLES[i] + laser_est_yaw) % (2 * np.pi)
+				if single_yaw == 0:
+					laser_x.append(FIELD_SIZE[0] - data[i])
+				elif single_yaw == np.pi:
+					laser_x.append(data[i])
+				elif single_yaw == np.pi / 2:
+					laser_y.append(FIELD_SIZE[1] - data[i])
+				elif single_yaw == np.pi * 3 / 2:
+					laser_y.append(data[i])
 				else:
-					laser_y.append(FIELD_SIZE[1] - data[i] * np.sin(single_yaw) if np.sin(single_yaw) > 0 else -data[i] * np.sin(single_yaw))
+					d_x = (FIELD_SIZE[0] - self.est_pos[0]) / np.cos(single_yaw) if np.cos(single_yaw) > 0 else -self.est_pos[0] / np.cos(single_yaw)
+					d_y = (FIELD_SIZE[1] - self.est_pos[1]) / np.sin(single_yaw) if np.sin(single_yaw) > 0 else -self.est_pos[1] / np.sin(single_yaw)
+					if d_x < d_y:
+						laser_x.append(FIELD_SIZE[0] - data[i] * np.cos(single_yaw) if np.cos(single_yaw) > 0 else -data[i] * np.cos(single_yaw))
+					else:
+						laser_y.append(FIELD_SIZE[1] - data[i] * np.sin(single_yaw) if np.sin(single_yaw) > 0 else -data[i] * np.sin(single_yaw))
 
 		if len(laser_x) == 0:
 			laser_x.append(self.est_pos[0])
