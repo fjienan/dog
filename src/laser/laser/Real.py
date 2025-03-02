@@ -69,32 +69,17 @@ class Real(Node):
 		
 		self.subscription_laser = self.create_subscription(
 			LaserScan,
-			'/enemy/robot4/scan',
+			'/ally/robot1/scan',
 			self.scan_callback,
 			10)
 		self.subscription_laser  # 防止未使用的变量警告
-		self.real_laser=[]
+		self.real_laser=[0] * len(LASER_ANGLES)
 		self.subscription_imu = self.create_subscription(
 			Imu,
-			'/enemy/robot4/imu',
+			'/ally/robot1/imu',
 			self.listener_callback,
 			10)
 		self.subscriptions  # 防止未使用的变量警告
-		
-	def scan_callback(self, msg):
-		self.get_logger().info('scan received')
-		# 计算距离最近的障碍物距离
-		ranges = np.array(msg.ranges)
-		self.real_laser=[ranges[0],ranges[72],ranges[144],ranges[216],ranges[288]]
-		def __init__(self):
-			super().__init__('laser_subscriber')
-		
-		self.subscription = self.create_subscription(
-			LaserScan,
-			'/enemy/robot4/scan',
-			self.scan_callback,
-			10)
-		self.subscription  # 防止未使用的变量警告
 		
 	def scan_callback(self, msg):
 		# 获取激光雷达数据并且进行可视化，使用matplotlib
@@ -156,10 +141,9 @@ class Real(Node):
 ############################################
 class EstRobot:
 	def __init__(self, real):
-		# self.realrobot = realrobot
 		self.real = real
-		self.est_yaw = 0.0
-		self.est_pos = np.array(START_POINT)
+		self.est_yaw = self.kalman_filter.fianl_state[2]  # 估计朝向
+		self.est_pos = np.array(START_POINT)  # 估计位置
 		self.est_vel = 0.0
 
 	def update_imu(self, acc_body, yaw_acc, dt):
@@ -177,18 +161,11 @@ class EstRobot:
 		ax_global, ay_global = acc_global[0], acc_global[1]
 
 		# 更新全局速度
-		self.est_vel_x += ax_global * dt
-		self.est_vel_y += ay_global * dt
+		self.est_vel += np.sqrt(ax_global**2 + ay_global**2) * dt
 
-		# 限制速度范围
-		# self.est_vel_x = np.clip(...)
-
-		# 更新位置
-		self.est_pos[0] += self.est_vel_x * dt + 0.5 * ax_global * dt**2
-		self.est_pos[1] += self.est_vel_y * dt + 0.5 * ay_global * dt**2
-
-		# 检查位置边界
-		# self.est_pos = np.clip(...)
+		# 更新全局位置
+		self.est_pos[0] += self.est_vel * np.cos(self.est_yaw) * dt
+		self.est_pos[1] += self.est_vel * np.sin(self.est_yaw) * dt
 
 	def update_laser(self):
 		laser_x = []
@@ -199,16 +176,16 @@ class EstRobot:
 		flag = [0] * len(LASER_ANGLES)
 
 		for i in range(len(LASER_ANGLES)):
-			data.append(self.realrobot.get_laser(i))
+			data.append(self.real.real_laser[i])
 			laser_yaw = (LASER_ANGLES[i] + self.est_yaw) % (2 * np.pi)
 			if laser_yaw == 0:
-				thorey_length = FIELD_SIZE[0] - self.pos[0]
+				thorey_length = FIELD_SIZE[0] - self.est_pos[0]
 			elif laser_yaw == np.pi:
-				thorey_length =  self.pos[0]
+				thorey_length =  self.est_pos[0]
 			elif laser_yaw == np.pi / 2:
-				thorey_length =  FIELD_SIZE[1] - self.pos[1]
+				thorey_length =  FIELD_SIZE[1] - self.est_pos[1]
 			elif laser_yaw == -np.pi / 2:
-				thorey_length =  self.pos[1]
+				thorey_length =  self.est_pos[1]
 			else:
 				d_x = (FIELD_SIZE[0] - self.est_pos[0]) / np.cos(laser_yaw) if np.cos(laser_yaw) > 0 else -self.est_pos[0] / np.cos(laser_yaw)
 				d_y = (FIELD_SIZE[1] - self.est_pos[1]) / np.sin(laser_yaw) if np.sin(laser_yaw) > 0 else -self.est_pos[1] / np.sin(laser_yaw)
@@ -295,7 +272,7 @@ class EstRobot:
 ############################################
 class KalmanFilter:
 
-	def __init__(self,estrobot,real,dt=DT, process_noise_cov=np.eye(5), measurement_noise_cov=np.eye(3), state_cov=np.eye(5), initial_state_vector=[0, 0, 0, 0, 0]):
+	def __init__(self,estrobot,real,dt=DT, process_noise_cov=np.eye(5), measurement_noise_cov=np.eye(3), state_cov=np.eye(5), initial_state_vector=[0, 0, 0, 0, 0],state_dim=5):
 		self.estrobot=estrobot
 		self.real=real
 		self.dt = dt  # Time step
@@ -377,4 +354,11 @@ class KalmanFilter:
 		self.P = np.dot(I - np.dot(K, self.H), self.P)
 
 		self.final_state = [self.state[0]*2, self.state[2]*2, self.state[4]*2]
+	
+		# 更新 estrobot 的状态
+		self.estrobot.est_vel = np.sqrt(self.state[1]**2 + self.state[3]**2)
+		self.estrobot.est_pos = np.array([self.final_state[0], self.final_state[1]])
+		self.estrobot.est_yaw = self.final_state[2]
+
+		# 返回最终状态
 		return self.final_state
