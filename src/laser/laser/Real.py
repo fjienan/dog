@@ -7,10 +7,12 @@ import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 from matplotlib import rcParams, patches
+from rclpy.executors import MultiThreadedExecutor
 import time
 from scipy.optimize import fsolve
 from sensor_msgs.msg import Imu
 from std_msgs.msg import String
+from sensor_msgs.msg import LaserScan
 from tf_transformations import euler_from_quaternion
 from laser_interfaces.msg import LaserPosition
 # 设置字体为 SimHei 以支持中文显示
@@ -21,11 +23,11 @@ from laser_interfaces.msg import LaserPosition
 imu_data_flag = 1 			# 是否有IMU数据
 R = 1.0                     # Meaurement noise value
 Q = 1
-DT = 0.02                      # IMU 时间步长
+DT = 1                    # IMU 时间步长
 FIELD_SIZE = [15, 8]           # 场地大小
 MAX_SPEED = 0.5                # 最大速度 m/s
 LASER_ANGLES = [0, np.deg2rad(72), np.deg2rad(144), np.deg2rad(216), np.deg2rad(288)]
-START_POINT = [7.5, 4.0]       # 初始位置
+START_POINT = [7.5, 4]       # 初始位置
 LASER_ALLOWED_NOISE = 0.3      # 激光测量允许的噪声
 
 # class MinimalPublisher(Node):
@@ -66,12 +68,16 @@ def main(args=None):
 	estrobot = EstRobot(real)
 	kalman_filter = KalmanFilter(estrobot, real)
 	minimal_publisher = MinimalPublisher(estrobot)
-	while True:
-		rclpy.spin_once(real)
-		rclpy.spin_once(minimal_publisher)
-	minimal_publisher.destroy_node()
-	rclpy.shutdown()
-
+	executor = MultiThreadedExecutor()
+	executor.add_node(real)
+	executor.add_node(minimal_publisher)
+	
+	try:
+		executor.spin()
+	finally:
+		real.destroy_node()
+		minimal_publisher.destroy_node()
+		rclpy.shutdown()
 if __name__ == '__main__':
 	main()
 
@@ -92,6 +98,7 @@ class Real(Node):
 			self.listener_callback,
 			10)
 		self.subscriptions  # 防止未使用的变量警告
+		self.yaw_rate = 0.0  # 初始化 yaw_rate
 		
 	def scan_callback(self, msg):
 		# 获取激光雷达数据并且进行可视化，使用matplotlib
@@ -107,7 +114,7 @@ class Real(Node):
 		# 将四元数转换为欧拉角
 		# 获取角速度
 		angular_velocity = msg.angular_velocity
-		self.yaw_rate = angular_velocity
+		self.yaw_rate = angular_velocity.z  # 修正 yaw_rate 的获取方式
 		# self.get_logger().info(f"Yaw rate from IMU: {self.yaw_rate}\n")
 		# # 获取角加速度
 		# yaw_acc = msg.angular_acceleration
@@ -120,7 +127,7 @@ class Real(Node):
 		# self.get_logger().info(f"Acceleration - x: {self.acc_x}, y: {self.acc_y}\n")
 		(roll, pitch, self.yaw) = euler_from_quaternion(orientation_list)
 		# 打印 yaw 角
-		# self.get_logger().info(f"Yaw angle from IMU: {self.yaw}\n")
+		self.get_logger().info(f"Yaw angle from IMU: {self.yaw}\n")
 
 # class RealRobot: # 获取理论激光长度
 # 	def __init__(self):
@@ -156,28 +163,31 @@ class EstRobot:
 		self.real = real
 		self.est_yaw = 0 # 估计朝向
 		self.est_pos = np.array(START_POINT)  # 估计位置
-		self.est_vel = 0.0
+		self.est_vel_x = 0.0
+		self.est_vel_y = 0.0
+		self.acc_body = np.array([0, 0]).reshape((2, 1))
 
-	def update_imu(self, acc_body, dt=DT):
+	def update_imu(self, dt=DT):
 		# 更新角速度（角加速度积分）
-		acc_body = np.array([self.real.acc_x, self.real.acc_y]).reshape((2, 1))
-		self.yaw_rate = self.real.yaw_rate
+		self.acc_body = np.array([self.real.acc_x, self.real.acc_y]).reshape((2, 1))
+		self.yaw_rate = self.real.yaw_rate.z
 		# 更新朝向（角速度积分）
 		self.est_yaw += self.yaw_rate * dt
 		self.est_yaw %= 2 * np.pi
-
+		print (self.acc_body)
 		# 将本体系加速度转换到全局坐标系
 		R = np.array([[np.cos(self.est_yaw), -np.sin(self.est_yaw)], 
 					[np.sin(self.est_yaw), np.cos(self.est_yaw)]])
-		acc_global = R @ acc_body
+		acc_global = R @ self.acc_body
 		ax_global, ay_global = acc_global[0], acc_global[1]
 
 		# 更新全局速度
-		self.est_vel += np.sqrt(ax_global**2 + ay_global**2) * dt
+		self.est_vel_x += ax_global * dt 
+		self.est_vel_y += ay_global * dt
 
 		# 更新全局位置
-		self.est_pos[0] += self.est_vel * np.cos(self.est_yaw) * dt
-		self.est_pos[1] += self.est_vel * np.sin(self.est_yaw) * dt
+		self.est_pos[0] += self.est_vel_x * dt
+		self.est_pos[1] += self.est_vel_y * dt
 
 	def update_laser(self):
 		laser_x = []
@@ -219,11 +229,12 @@ class EstRobot:
 			for [dis, id] in down_width:  # 扫描下激光的信息
 				lengh_massure_2.append(abs(dis * np.sin(angle + LASER_ANGLES[id])))  # 点到下边界的距离
 			mean_lengh_massure_2 = np.mean(lengh_massure_2)
-			return mean_lengh_massure_1 + mean_lengh_massure_2 - FIELD_SIZE[1]
+			return mean_lengh_massure_1 + mean_lengh_massure_2 - FIELD_SIZE[1]  # 返回方程的值
 
 		laser_est_yaw = fsolve(func, x0=self.est_yaw)[0]  # x0 是浮点初始猜测
 		laser_est_yaw %= 2 * np.pi
-
+		print (self.acc_body)
+		print("laser_est_yaw:", laser_est_yaw)  # 打印解方程的结果
 		for i in range(len(LASER_ANGLES)): #用求解出的角度计算出坐标
 			if flag[i] == 1:
 				continue
@@ -250,7 +261,7 @@ class EstRobot:
 				print("in this place,the laser cann`t detect the obstacle precisely")
 			if len(laser_y) == 0:
 				laser_y.append(self.est_pos[1])
-		return [np.mean(laser_x), np.mean(laser_y)], laser_est_yaw
+			return [np.mean(laser_x), np.mean(laser_y)], laser_est_yaw
 
 
 ############################################
