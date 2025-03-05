@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import LaserScan
@@ -11,8 +12,11 @@ import time
 from scipy.optimize import fsolve
 from sensor_msgs.msg import Imu
 from std_msgs.msg import String
+from sensor_msgs.msg import LaserScan
+import threading  # 导入线程模块
+
 from tf_transformations import euler_from_quaternion
-from laser_interfaces.msg import LaserPosition
+# from laser_interfaces.msg import LaserPosition
 # 设置字体为 SimHei 以支持中文显示
 # rcParams['font.sans-serif'] = ['SimHei']
 # rcParams['axes.unicode_minus'] = False
@@ -21,11 +25,11 @@ from laser_interfaces.msg import LaserPosition
 imu_data_flag = 1 			# 是否有IMU数据
 R = 1.0                     # Meaurement noise value
 Q = 1
-DT = 0.02                      # IMU 时间步长
+DT = 1                    # IMU 时间步长
 FIELD_SIZE = [15, 8]           # 场地大小
 MAX_SPEED = 0.5                # 最大速度 m/s
 LASER_ANGLES = [0, np.deg2rad(72), np.deg2rad(144), np.deg2rad(216), np.deg2rad(288)]
-START_POINT = [7.5, 4.0]       # 初始位置
+START_POINT = [7.5, 4]       # 初始位置
 LASER_ALLOWED_NOISE = 0.3      # 激光测量允许的噪声
 
 # class MinimalPublisher(Node):
@@ -37,47 +41,34 @@ LASER_ALLOWED_NOISE = 0.3      # 激光测量允许的噪声
 # 		# 设置定时器，每秒发布一次消息
 # 		self.timer = self.create_timer(1.0, self.timer_callback)
 # 		self.i = 0
-class MinimalPublisher(Node):
-	def __init__(self,estrobot):
-		self.estrobot=estrobot
-		super().__init__('minimal_publisher')
-		# 创建一个发布者，发布到'topic' topic，消息类型是String
-		self.publisher_ = self.create_publisher(LaserPosition, 'laser_position', 10)
-		# 设置定时器，每秒发布一次消息
-		self.timer = self.create_timer(1.0, self.timer_callback)
-		self.i = 0
+# class MinimalPublisher(Node):
+# 	def __init__(self,estrobot):
+# 		self.estrobot=estrobot
+# 		super().__init__('minimal_publisher')
+# 		# 创建一个发布者，发布到'topic' topic，消息类型是String
+# 		self.publisher_ = self.create_publisher(LaserPosition, 'laser_position', 10)
+# 		# 设置定时器，每秒发布一次消息
+# 		self.timer = self.create_timer(1.0, self.timer_callback)
+# 		self.i = 0
 
 
-	def timer_callback(self):
-		msg = LaserPosition()
-		final_state,final_angle = self.estrobot.update_laser()
-		msg.x=float(final_state[0])
-		msg.y=float(final_state[1])
-		msg.angle=float(final_angle)
-		self.publisher_.publish(msg)
-		self.get_logger().info(f'Publishing: {msg}')
-		self.i += 1
+# 	def timer_callback(self):
+# 		msg = LaserPosition()
+# 		final_state,final_angle = self.estrobot.update_laser()
+# 		msg.x=float(final_state[0])
+# 		msg.y=float(final_state[1])
+# 		msg.angle=float(final_angle)
+# 		self.publisher_.publish(msg)
+# 		self.get_logger().info(f'Publishing: {msg}')
+# 		self.i += 1
 
-def main(args=None):
-	rclpy.init(args=args)
-	
-	real = Real()
-	# laser_obstacle = Laser_obstacle(real,realrobot)
-	estrobot = EstRobot(real)
-	kalman_filter = KalmanFilter(estrobot, real)
-	minimal_publisher = MinimalPublisher(estrobot)
-	while True:
-		rclpy.spin_once(real)
-		rclpy.spin_once(minimal_publisher)
-	minimal_publisher.destroy_node()
-	rclpy.shutdown()
-
-if __name__ == '__main__':
-	main()
 
 class Real(Node):
 	def __init__(self):
 		super().__init__('laser_position')
+		self.laser_update_time = None
+		self.imu_update_time = None
+		self.data_lock = threading.Lock()  # 添加线程锁
 		
 		self.subscription_laser = self.create_subscription(
 			LaserScan,
@@ -92,6 +83,9 @@ class Real(Node):
 			self.listener_callback,
 			10)
 		self.subscriptions  # 防止未使用的变量警告
+		self.yaw_rate = 0.0  # 初始化 yaw_rate
+		self.acc_x = 0.0  # 初始化 x 方向加速度
+		self.acc_y = 0.0  # 初始化 y 方向加速度 # 初始化 yaw
 		
 	def scan_callback(self, msg):
 		# 获取激光雷达数据并且进行可视化，使用matplotlib
@@ -99,6 +93,18 @@ class Real(Node):
 		# 计算距离最近的障碍物距离
 		ranges = np.array(msg.ranges)
 		self.real_laser = [ranges[0], ranges[72], ranges[144], ranges[216], ranges[288]]
+		self.laser_update_time = time.time()
+
+		# # 添加格式化输出
+		# self.get_logger().info(
+		# 	'\n--- Laser Scan ---\n'
+		# 	f'Front: {self.real_laser[0]:.2f}m\n'
+		# 	f'Right: {self.real_laser[1]:.2f}m\n'
+		# 	f'Rear: {self.real_laser[2]:.2f}m\n'
+		# 	f'Left: {self.real_laser[3]:.2f}m\n'
+		# 	f'Back: {self.real_laser[4]:.2f}m\n'
+		# 	'-------------------'
+		# )
 
 	def listener_callback(self, msg):
 		# 从消息中获取四元数
@@ -107,7 +113,7 @@ class Real(Node):
 		# 将四元数转换为欧拉角
 		# 获取角速度
 		angular_velocity = msg.angular_velocity
-		self.yaw_rate = angular_velocity
+		self.yaw_rate = angular_velocity.z  # 修正 yaw_rate 的获取方式
 		# self.get_logger().info(f"Yaw rate from IMU: {self.yaw_rate}\n")
 		# # 获取角加速度
 		# yaw_acc = msg.angular_acceleration
@@ -119,6 +125,7 @@ class Real(Node):
 		self.acc_y = linear_acceleration.y
 		# self.get_logger().info(f"Acceleration - x: {self.acc_x}, y: {self.acc_y}\n")
 		(roll, pitch, self.yaw) = euler_from_quaternion(orientation_list)
+		self.imu_update_time = time.time()
 		# 打印 yaw 角
 		# self.get_logger().info(f"Yaw angle from IMU: {self.yaw}\n")
 
@@ -151,35 +158,88 @@ class Real(Node):
 # 		return time.time()
 
 ############################################
-class EstRobot:
+class EstRobot(Node):
 	def __init__(self, real):
+		
+		super().__init__('est_robot_node')
+		self.get_logger().set_level(rclpy.logging.LoggingSeverity.DEBUG)  # 确保日志级别
 		self.real = real
-		self.est_yaw = 0 # 估计朝向
-		self.est_pos = np.array(START_POINT)  # 估计位置
-		self.est_vel = 0.0
+		self.est_yaw = 0.0 # 估计朝向
+		self.est_pos = np.array(START_POINT, dtype=np.float64)  # 估计位置
+		self.est_vel_x = 0.0
+		self.est_vel_y = 0.0
+		# self.acc_body = np.array([self.real.acc_x, self.real.acc_y]).reshape((2, 1))
+		self.acc_body = np.zeros((2, 1))  # 初始化为零
+		self.acc_global = np.zeros((2, 1))  # 新增必要属性
 
-	def update_imu(self, acc_body, dt=DT):
-		# 更新角速度（角加速度积分）
-		acc_body = np.array([self.real.acc_x, self.real.acc_y]).reshape((2, 1))
-		self.yaw_rate = self.real.yaw_rate
-		# 更新朝向（角速度积分）
-		self.est_yaw += self.yaw_rate * dt
-		self.est_yaw %= 2 * np.pi
+		# 添加初始化调试信息
+		self.get_logger().info("[EstRobot] 初始化完成")
+		self.get_logger().info(f"[EstRobot] 初始传感器状态 - acc_x: {self.real.acc_x:.2f}, acc_y: {self.real.acc_y:.2f}")
 
-		# 将本体系加速度转换到全局坐标系
-		R = np.array([[np.cos(self.est_yaw), -np.sin(self.est_yaw)], 
-					[np.sin(self.est_yaw), np.cos(self.est_yaw)]])
-		acc_global = R @ acc_body
-		ax_global, ay_global = acc_global[0], acc_global[1]
 
-		# 更新全局速度
-		self.est_vel += np.sqrt(ax_global**2 + ay_global**2) * dt
+	def update_imu(self, dt=DT):
+			"""带锁的IMU数据更新"""
+			# 加锁获取最新数据
+			with self.real.data_lock:
+				current_acc_x = float(self.real.acc_x)
+				current_acc_y = float(self.real.acc_y)
+				current_yaw_rate = float(self.real.yaw_rate)
 
-		# 更新全局位置
-		self.est_pos[0] += self.est_vel * np.cos(self.est_yaw) * dt
-		self.est_pos[1] += self.est_vel * np.sin(self.est_yaw) * dt
+			# 更新角速度积分
+			self.est_yaw += current_yaw_rate * dt
+			self.est_yaw %= 2 * np.pi
+			
+			# 确保三角函数输入为标量
+			cos_yaw = np.cos(self.est_yaw)
+			sin_yaw = np.sin(self.est_yaw)
+			
+			# 正确构造2x2旋转矩阵
+			R = np.array([
+				[cos_yaw, -sin_yaw],
+				[sin_yaw,  cos_yaw]
+			], dtype=np.float64)
+			
+			# 验证维度
+			assert R.shape == (2, 2), f"旋转矩阵维度错误: {R.shape}"
+
+			# 确保加速度数据为2x1列向量
+			self.acc_body = np.array([[current_acc_x], [current_acc_y]], dtype=np.float64)
+			
+			# 检查矩阵维度
+			assert self.acc_body.shape == (2, 1), f"acc_body维度错误: {self.acc_body.shape}"
+
+			# 坐标变换
+			# R = np.array([
+			# 	[np.cos(self.est_yaw), -np.sin(self.est_yaw)],
+			# 	[np.sin(self.est_yaw), np.cos(self.est_yaw)]
+			# ], dtype=np.float64)
+
+
+			assert R.shape == (2, 2), f"旋转矩阵维度错误: {R.shape}"
+
+			self.acc_global = R @ self.acc_body
+
+			# 运动学更新
+			self.est_vel_x += self.acc_global[0, 0] * dt
+			self.est_vel_y += self.acc_global[1, 0] * dt
+			self.est_pos[0] += self.est_vel_x * dt
+			self.est_pos[1] += self.est_vel_y * dt
+
+			# 调试输出
+			self.get_logger().info(
+				f"IMU更新: 加速度({current_acc_x:.2f}, {current_acc_y:.2f}) "
+				f"位置({self.est_pos[0]:.2f}, {self.est_pos[1]:.2f})"
+			)
+
+
 
 	def update_laser(self):
+		with self.real.data_lock:
+			laser_data = self.real.real_laser.copy()
+		
+		# 过滤无效数据 (NaN/inf)
+		laser_data = np.nan_to_num(laser_data, nan=0.0, posinf=FIELD_SIZE[0], neginf=0.0)
+		
 		laser_x = []
 		laser_y = []
 		data = []
@@ -187,8 +247,18 @@ class EstRobot:
 		down_width = []
 		flag = [0] * len(LASER_ANGLES)
 
+		# 调试：打印原始激光数据
+		# self.get_logger().info(
+		# 	f"[EstRobot::update_laser] 原始激光数据 - "
+		# 	f"前: {laser_data[0]:.2f}m, "
+		# 	f"右: {laser_data[1]:.2f}m, "
+		# 	f"后: {laser_data[2]:.2f}m, "
+		# 	f"左: {laser_data[3]:.2f}m, "
+		# 	f"背: {laser_data[4]:.2f}m"
+		# )
+
 		for i in range(len(LASER_ANGLES)): #计算激光的理论长度
-			data.append(self.real.real_laser[i]) #获取每个激光的数据
+			data.append(laser_data[i]) #获取每个激光的数据
 			laser_yaw = (LASER_ANGLES[i] + self.est_yaw) % (2 * np.pi)
 			if laser_yaw == 0: #当激光打在右边界上时
 				thorey_length = FIELD_SIZE[0] - self.est_pos[0]
@@ -219,11 +289,12 @@ class EstRobot:
 			for [dis, id] in down_width:  # 扫描下激光的信息
 				lengh_massure_2.append(abs(dis * np.sin(angle + LASER_ANGLES[id])))  # 点到下边界的距离
 			mean_lengh_massure_2 = np.mean(lengh_massure_2)
-			return mean_lengh_massure_1 + mean_lengh_massure_2 - FIELD_SIZE[1]
+			return mean_lengh_massure_1 + mean_lengh_massure_2 - FIELD_SIZE[1]  # 返回方程的值
 
 		laser_est_yaw = fsolve(func, x0=self.est_yaw)[0]  # x0 是浮点初始猜测
 		laser_est_yaw %= 2 * np.pi
-
+		print (self.acc_body)
+		print("laser_est_yaw:", laser_est_yaw)  # 打印解方程的结果
 		for i in range(len(LASER_ANGLES)): #用求解出的角度计算出坐标
 			if flag[i] == 1:
 				continue
@@ -250,7 +321,22 @@ class EstRobot:
 				print("in this place,the laser cann`t detect the obstacle precisely")
 			if len(laser_y) == 0:
 				laser_y.append(self.est_pos[1])
-		return [np.mean(laser_x), np.mean(laser_y)], laser_est_yaw
+
+		# 调试：最终计算结果
+		self.get_logger().info(
+			f"[EstRobot::update_laser] 计算结果 - "
+			f"位置: ({np.mean(laser_x):.2f}, {np.mean(laser_y):.2f}), "
+			f"朝向: {np.degrees(self.est_yaw):.1f}°"
+		)
+
+		# 添加数据有效性检查
+		def safe_mean(data, default):
+			return np.nanmean(data) if np.any(data) else default
+		
+		final_x = safe_mean(laser_x, self.est_pos[0])
+		final_y = safe_mean(laser_y, self.est_pos[1])
+		
+		return [final_x, final_y], self.est_yaw
 
 
 ############################################
@@ -266,7 +352,7 @@ class EstRobot:
 # 		self.error_id=[]
 
 # 	def laser_theory_length(self):
-# 		self.real_length = self.real.real_laser
+# 		self.real_length = laser_data
 # 		for i in range(len(LASER_ANGLES)):
 # 			self.theory_length.append(self.realrobot.get_laser(i))##到时候Realrobot类可以作为理论长度计算而保留
 # 		for i in range(len(LASER_ANGLES)):
@@ -281,21 +367,24 @@ class EstRobot:
 ############################################
 class KalmanFilter:
 
-	def __init__(self,estrobot,real,dt=DT, process_noise_cov=np.eye(5), measurement_noise_cov=np.eye(3), state_cov=np.eye(5), initial_state_vector=[0, 0, 0, 0, 0],state_dim=5):
+	def __init__(self,estrobot,real,dt=DT, process_noise_cov=np.eye(6), measurement_noise_cov=np.eye(3), state_cov=np.eye(6), initial_state_vector=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0],state_dim=6):
 		self.estrobot=estrobot
 		self.state_dim = state_dim
 		self.real=real
 		self.dt = dt  # Time step
 		
 		# Initialize state vector [x, x_vel, y, y_vel, angle, angular_vel]
-		self.state = np.array(initial_state_vector).reshape((5, 1))
-		self.state[0],self.state[2] = [START_POINT[0],START_POINT[1]]
-		# State transition matrix (F) #状态转移矩阵
-		self.F = np.array([[1, dt, 0, 0,  0],
-						   [0, 1,  0, 0,  0],
-						   [0, 0,  1, dt, 0],
-						   [0, 0,  0, 1,  0],
-						   [0, 0,  0, 0,  1]])
+		self.state = np.array(initial_state_vector, dtype=np.float64).reshape((6, 1))
+		self.state[0],self.state[2] = [float(START_POINT[0]),float(START_POINT[1])]
+		# 修改状态转移矩阵（6x6）
+		self.F = np.array([
+			[1, dt, 0, 0,  0, 0],
+			[0, 1,  0, 0,  0, 0],
+			[0, 0,  1, dt, 0, 0],
+			[0, 0,  0, 1,  0, 0],
+			[0, 0,  0, 0,  1, dt],
+			[0, 0,  0, 0,  0, 1]
+		])
 		
 		# Process noise covariance (Q) #过程噪声协方差
 		self.Q = process_noise_cov
@@ -305,13 +394,15 @@ class KalmanFilter:
 		self.P = state_cov
 		# Measurement matrix (H) (We are only measuring position and angle [x, y, angle]) 
 		# #测量矩阵 (我们只测量位置和角度 [x, y, angle],使用激光雷达数据)
-		self.H = np.array([[1, 0, 0, 0, 0],
-						   [0, 0, 1, 0, 0],
-						   [0, 0, 0, 0, 1]])
+		self.H = np.array([[1, 0, 0, 0, 0,0],
+						   [0, 0, 1, 0, 0,0],
+						   [0, 0, 0, 0, 1,0]])
 
 	def predict(self):
 	# 获取全局坐标系下的加速度
 		if imu_data_flag == 1:
+			ax = self.estrobot.acc_global[0, 0]
+			ay = self.estrobot.acc_global[1, 0]
 			acc_global = self.estrobot.acc_global  # 实现坐标转换
 			ax, ay = acc_global[0], acc_global[1]
 			# 更新位置
@@ -362,9 +453,50 @@ class KalmanFilter:
 
 		self.final_state = [self.state[0], self.state[2], self.state[4]]
 	
-		# 更新 estrobot 的状态
-		self.estrobot.est_vel = np.sqrt(self.state[1]**2 + self.state[3]**2)
-		self.estrobot.est_pos = np.array([self.state[0], self.state[2]])
-		self.estrobot.est_yaw = self.state[4]
+		# # 更新 estrobot 的状态
+		# self.estrobot.est_vel = np.sqrt(self.state[1]**2 + self.state[3]**2)
+		# self.estrobot.est_pos = np.array([self.state[0], self.state[2]])
+		# self.estrobot.est_yaw = self.state[4]
 		# 返回最终状态
+		self.estrobot.est_vel_x = self.state[1, 0]  # 提取标量
+		self.estrobot.est_vel_y = self.state[3, 0]  # 提取标量
+		self.estrobot.est_pos = np.array([self.state[0, 0], self.state[2, 0]])
+		self.estrobot.est_yaw = self.state[4, 0]  # 提取标量
+
 		return self.final_state
+
+
+def main(args=None):
+    rclpy.init(args=args)
+    real_node = Real()
+    est_robot = EstRobot(real_node)
+    kalman_filter = KalmanFilter(est_robot, real_node)
+
+    # 强制启用所有节点的DEBUG日志
+    real_node.get_logger().set_level(rclpy.logging.LoggingSeverity.DEBUG)
+    est_robot.get_logger().set_level(rclpy.logging.LoggingSeverity.DEBUG)
+
+    # 独立ROS线程
+    ros_spin_thread = threading.Thread(target=rclpy.spin, args=(real_node,))
+    ros_spin_thread.daemon = True
+    ros_spin_thread.start()
+
+    try:
+        while True:
+            # 固定频率10Hz
+            time.sleep(0.1)
+            
+            # 强制更新（移除时间戳检查）
+            est_robot.update_imu()    # 确保IMU更新
+            est_robot.update_laser()  # 确保激光更新
+            
+            # 卡尔曼滤波
+            kalman_filter.predict()
+            kalman_filter.update()
+
+    except KeyboardInterrupt:
+        real_node.destroy_node()
+        rclpy.shutdown()
+			
+if __name__ == '__main__':
+	main()
