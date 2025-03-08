@@ -15,8 +15,8 @@ def generate_launch_description():
         # 己方车辆
         {
             "name": "robot1",
-            "x": "0.0",
-            "y": "0.0",
+            "x": "-1.0",
+            "y": "-1.0",
             "z": "0.1",
             "controller_config": "ally_controller.yaml",  # 己方通用控制器
             "team": "ally",
@@ -24,7 +24,7 @@ def generate_launch_description():
         },
         {
             "name": "robot2",
-            "x": "0.0",
+            "x": "111.0",
             "y": "2.0",
             "z": "0.1",
             "controller_config": "ally_controller.yaml",
@@ -34,7 +34,7 @@ def generate_launch_description():
         # 敌方车辆
         {
             "name": "robot3",
-            "x": "5.0",
+            "x": "111.0",
             "y": "0.0",
             "z": "0.1",
             "controller_config": "enemy_controller.yaml",  # 敌方专用控制器
@@ -43,7 +43,7 @@ def generate_launch_description():
         },
         {
             "name": "robot4",
-            "x": "5.0",
+            "x": "511.0",
             "y": "2.0",
             "z": "0.1",
             "controller_config": "enemy_controller.yaml",
