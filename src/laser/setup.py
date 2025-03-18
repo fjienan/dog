@@ -1,5 +1,6 @@
 from setuptools import find_packages, setup
 
+
 package_name = 'laser'
 
 setup(
@@ -10,6 +11,7 @@ setup(
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
+        #添加自定义消息的文件路径/home/furry/Desktop/dog/src/laser_position/msg/Laserposition.msg
     ],
     install_requires=['setuptools'],
     zip_safe=True,
