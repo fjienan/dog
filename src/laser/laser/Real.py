@@ -1,4 +1,5 @@
 import rclpy
+from rclpy.utilities import remove_ros_args
 from rclpy.node import Node
 from laser_position.msg._laser_position import LaserPosition 
 from sensor_msgs.msg import LaserScan
@@ -17,12 +18,13 @@ from rclpy.executors import MultiThreadedExecutor
 
 # 模拟参数
 LASER_data_flag = 1		# 是否有LASER	数据
-DT = 0.05                    # IMU 时间步长
-FIELD_SIZE = [15, 8]           # 场地大小
-MAX_SPEED = 0.5                # 最大速度 m/s
+# self.real.DT = 0.05                    # IMU 时间步长
+# FIELD_SIZE = [15, 8]           # 场地大小
 LASER_ANGLES = [0, np.deg2rad(72), np.deg2rad(144), np.deg2rad(216), np.deg2rad(288)]
-START_POINT = [7.5, 4]       # 初始位置
-LASER_ALLOWED_NOISE = 2      # 激光测量允许的噪声
+# self.real.precess_noise_std = [0.1, 0.1, 0.05],
+# self.real.measurement_noise_std=[0.5,0.5,0.1], 
+# self.real.START_POINT = [7.5, 4]       # 初始位置
+# LASER_ALLOWED_NOISE = 2      # 激光测量允许的噪声
 
 
 class Real(Node):
@@ -45,7 +47,25 @@ class Real(Node):
         self.yaw_rate = 0.0  # 初始化 yaw_rate
         self.acc_x = 0.0  # 初始化 x 方向加速度
         self.acc_y = 0.0  # 初始化 y 方向加速度 # 初始化 yaw
+        self.declare_parameters(
+            namespace='',
+            parameters=[
+                ('DT',rclpy.Parameter.Type.DOUBLE),
+                ('FIELD_SIZE',rclpy.Parameter.Type.INTEGER_ARRAY),
+                ('process_noise_std',rclpy.Parameter.Type.DOUBLE_ARRAY),
+                ('measurement_noise_std',rclpy.Parameter.Type.DOUBLE_ARRAY),
+                ('START_POINT',rclpy.Parameter.Type.DOUBLE_ARRAY),
+                ('LASER_ALLOWED_NOISE',rclpy.Parameter.Type.DOUBLE)
+            ]
+        )
+        self.DT = self.get_parameter('DT').get_parameter_value().double_value
+        self.FIELD_SIZE = self.get_parameter('FIELD_SIZE').get_parameter_value().integer_array_value
+        self.process_noise_std = self.get_parameter('process_noise_std').get_parameter_value().double_array_value
+        self.measurement_noise_std = self.get_parameter('measurement_noise_std').get_parameter_value().double_array_value
+        self.START_POINT = self.get_parameter('START_POINT').get_parameter_value().double_array_value
+        self.LASER_ALLOWED_NOISE = self.get_parameter('LASER_ALLOWED_NOISE').get_parameter_value().double_value
 
+    
        
     def scan_callback(self, msg):
         # 获取激光雷达数据并且进行可视化，使用matplotlib
@@ -83,14 +103,14 @@ class EstRobot:
         self.lock = threading.Lock()
         self.real = real
         self.est_yaw = 0.0 # 估计朝向
-        self.est_pos = np.array(START_POINT, dtype=np.float64)  # 估计位置
+        self.est_pos = np.array(self.real.START_POINT, dtype=np.float64)  # 估计位置
         self.est_vel_x = 0.0
         self.est_vel_y = 0.0
         # self.acc_body = np.array([self.real.acc_x, self.real.acc_y]).reshape((2, 1))
         self.acc_body = np.zeros((2, 1))  # 初始化为零
         self.acc_global = np.zeros((2, 1))  # 新增必要属性
         self.start_time = 0
-    def update_imu(self, dt=DT):
+    def update_imu(self):
         # print(f"Data before IMU update: pos({self.est_pos[0]:.4f}, {self.est_pos[1]:.4f}), vel({self.est_vel_x:.4f}, {self.est_vel_y:.4f}), yaw({self.est_yaw:.4f})")
         self.start_time = time.time()
         current_acc_x = float(self.real.acc_x)
@@ -100,7 +120,7 @@ class EstRobot:
         print(f"IMU current_acc_x: {current_acc_x}, current_acc_y: {current_acc_y}, current_yaw_rate: {current_yaw_rate}\n")
 
         # 更新角速度积分
-        self.est_yaw += current_yaw_rate * dt
+        self.est_yaw += current_yaw_rate * self.real.DT
         # self.est_yaw %= 2 * np.pi
         
         # 确保三角函数输入为标量
@@ -133,18 +153,18 @@ class EstRobot:
         self.acc_global = R @ self.acc_body
 
         # 运动学更新
-        self.est_vel_x += self.acc_global[0, 0] * dt
-        self.est_vel_y += self.acc_global[1, 0] * dt
+        self.est_vel_x += self.acc_global[0, 0] * self.real.DT
+        self.est_vel_y += self.acc_global[1, 0] * self.real.DT
         print (f"IMU x_vel: {self.est_vel_x}, y_vel: {self.est_vel_y}")
-        self.est_pos[0] += self.est_vel_x * dt
-        self.est_pos[1] += self.est_vel_y * dt
+        self.est_pos[0] += self.est_vel_x * self.real.DT
+        self.est_pos[1] += self.est_vel_y * self.real.DT
 
     def update_laser(self):
         global LASER_data_flag
         laser_data = self.real.real_laser.copy()
 
         # 过滤无效数据 (NaN/inf)
-        laser_data = np.nan_to_num(laser_data, nan=-1, posinf=FIELD_SIZE[0], neginf=0.0)
+        laser_data = np.nan_to_num(laser_data, nan=-1, posinf=self.real.FIELD_SIZE[0], neginf=0.0)
         
         laser_x = []
         laser_y = []
@@ -161,28 +181,28 @@ class EstRobot:
                 continue
             laser_yaw = (LASER_ANGLES[i] + self.est_yaw) # % (2 * np.pi)
             if laser_yaw == 0: 		#当激光打在右边界上时
-                thorey_length = FIELD_SIZE[0] - self.est_pos[0]
+                thorey_length = self.real.FIELD_SIZE[0] - self.est_pos[0]
                 theory_length_map[i]=thorey_length
             elif laser_yaw == np.pi: 		#当激光打在左边界上时
                 thorey_length =  self.est_pos[0]
                 theory_length_map[i]=thorey_length
             elif laser_yaw == np.pi / 2: 		#当激光打在上边界上时
-                thorey_length =  FIELD_SIZE[1] - self.est_pos[1]
+                thorey_length =  self.real.FIELD_SIZE[1] - self.est_pos[1]
                 theory_length_map[i]=thorey_length
             elif laser_yaw == -np.pi / 2:		 #当激光打在下边界上时
                 thorey_length =  self.est_pos[1]
                 theory_length_map[i]=thorey_length
             else: 		#当激光打在其他地方时
-                d_x = (FIELD_SIZE[0] - self.est_pos[0]) / np.cos(laser_yaw) if np.cos(laser_yaw) > 0 else -self.est_pos[0] / np.cos(laser_yaw)
-                d_y = (FIELD_SIZE[1] - self.est_pos[1]) / np.sin(laser_yaw) if np.sin(laser_yaw) > 0 else -self.est_pos[1] / np.sin(laser_yaw)
+                d_x = (self.real.FIELD_SIZE[0] - self.est_pos[0]) / np.cos(laser_yaw) if np.cos(laser_yaw) > 0 else -self.est_pos[0] / np.cos(laser_yaw)
+                d_y = (self.real.FIELD_SIZE[1] - self.est_pos[1]) / np.sin(laser_yaw) if np.sin(laser_yaw) > 0 else -self.est_pos[1] / np.sin(laser_yaw)
                 thorey_length = d_x if d_x < d_y else d_y
                 theory_length_map[i]=thorey_length
-                if abs(data[i] - thorey_length) <= LASER_ALLOWED_NOISE and d_x > d_y:
+                if abs(data[i] - thorey_length) <= self.real.LASER_ALLOWED_NOISE and d_x > d_y:
                     if np.sin(laser_yaw) > 0:
                         up_width.append([data[i], i])
                     else:
                         down_width.append([data[i], i])
-                elif abs(data[i] - thorey_length) > LASER_ALLOWED_NOISE: #当激光数据与理论数据差距大于允许的噪声时,认为激光数据无效
+                elif abs(data[i] - thorey_length) > self.real.LASER_ALLOWED_NOISE: #当激光数据与理论数据差距大于允许的噪声时,认为激光数据无效
                     flag[i] = 1 	#-1代表激光数据无效
         # print(f"theoretical length: {theory_length_map}")
 
@@ -195,7 +215,7 @@ class EstRobot:
             for [dis, id] in down_width:  # 扫描下激光的信息
                 lengh_massure_2.append(abs(dis * np.sin(angle + LASER_ANGLES[id])))  # 点到下边界的距离
             mean_lengh_massure_2 = np.mean(lengh_massure_2)
-            return mean_lengh_massure_1 + mean_lengh_massure_2 - FIELD_SIZE[1]  # 返回方程的值
+            return mean_lengh_massure_1 + mean_lengh_massure_2 - self.real.FIELD_SIZE[1]  # 返回方程的值
 
         laser_est_yaw = fsolve(func, x0=self.est_yaw)[0]  # x0 是浮点初始猜测
         # laser_est_yaw %= 2 * np.pi
@@ -206,20 +226,20 @@ class EstRobot:
             else:
                 single_yaw = (LASER_ANGLES[i] + laser_est_yaw) % (2 * np.pi)
                 if single_yaw == 0:#当激光打在右边界上时
-                    laser_x.append(FIELD_SIZE[0] - data[i])
+                    laser_x.append(self.real.FIELD_SIZE[0] - data[i])
                 elif single_yaw == np.pi:#当激光打在左边界上时	
                     laser_x.append(data[i])
                 elif single_yaw == np.pi / 2:#当激光打在上边界上时
-                    laser_y.append(FIELD_SIZE[1] - data[i])
+                    laser_y.append(self.real.FIELD_SIZE[1] - data[i])
                 elif single_yaw == np.pi * 3 / 2:#当激光打在下边界上时
                     laser_y.append(data[i])
                 else:
-                    d_x = (FIELD_SIZE[0] - self.est_pos[0]) / np.cos(single_yaw) if np.cos(single_yaw) > 0 else -self.est_pos[0] / np.cos(single_yaw)
-                    d_y = (FIELD_SIZE[1] - self.est_pos[1]) / np.sin(single_yaw) if np.sin(single_yaw) > 0 else -self.est_pos[1] / np.sin(single_yaw)
+                    d_x = (self.real.FIELD_SIZE[0] - self.est_pos[0]) / np.cos(single_yaw) if np.cos(single_yaw) > 0 else -self.est_pos[0] / np.cos(single_yaw)
+                    d_y = (self.real.FIELD_SIZE[1] - self.est_pos[1]) / np.sin(single_yaw) if np.sin(single_yaw) > 0 else -self.est_pos[1] / np.sin(single_yaw)
                     if d_x < d_y:
-                        laser_x.append(FIELD_SIZE[0] - data[i] * np.cos(single_yaw) if np.cos(single_yaw) > 0 else -data[i] * np.cos(single_yaw))
+                        laser_x.append(self.real.FIELD_SIZE[0] - data[i] * np.cos(single_yaw) if np.cos(single_yaw) > 0 else -data[i] * np.cos(single_yaw))
                     else:
-                        laser_y.append(FIELD_SIZE[1] - data[i] * np.sin(single_yaw) if np.sin(single_yaw) > 0 else -data[i] * np.sin(single_yaw))
+                        laser_y.append(self.real.FIELD_SIZE[1] - data[i] * np.sin(single_yaw) if np.sin(single_yaw) > 0 else -data[i] * np.sin(single_yaw))
 
         # print(f"Data before Laser update: pos({self.est_pos[0]:.4f}, {self.est_pos[1]:.4f}), yaw({self.est_yaw:.4f})")
         if len(laser_x) == 0:
@@ -248,35 +268,32 @@ class EstRobot:
 ############################################
 class KalmanFilter:
 
-    def __init__(self,estrobot,real,dt=DT,
-                 process_noise_std = [0.1, 0.1, 0.05], # [ax, ay, angular_acc],
-                 measurement_noise_std=[0.5,0.5,0.1],    
+    def __init__(self,estrobot,real, # [ax, ay, angular_acc],   
                  initial_state_vector=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
                  initial_state_uncertainty=1.0
                  ):
         self.estrobot=estrobot
         self.state_dim = 6
-        self.real=real
-        self.dt = dt  # Time step
+        self.real=real 
         self.end_time = 0.0
         
         # Initialize state vector [x, x_vel, y, y_vel, angle, angular_vel]
         self.state = np.array(initial_state_vector, dtype=np.float64).reshape((6, 1))
-        self.state[0],self.state[2] = [float(START_POINT[0]),float(START_POINT[1])]
+        self.state[0],self.state[2] = [float(self.real.START_POINT[0]),float(self.real.START_POINT[1])]
         # 修改状态转移矩阵（6x6）
         self.F = np.array([
-            [1, dt, 0, 0,  0, 0],
+            [1, self.real.DT, 0, 0,  0, 0],
             [0, 1,  0, 0,  0, 0],
-            [0, 0,  1, dt, 0, 0],
+            [0, 0,  1, self.real.DT, 0, 0],
             [0, 0,  0, 1,  0, 0],
-            [0, 0,  0, 0,  1, dt],
+            [0, 0,  0, 0,  1, self.real.DT],
             [0, 0,  0, 0,  0, 1]
         ])
 
         # 过程噪声协方差Q（基于加速度噪声）
-        q_x = (process_noise_std[0]**2) * np.array([[dt**4/4, dt**3/2], [dt**3/2, dt**2]])
-        q_y = (process_noise_std[1]**2) * np.array([[dt**4/4, dt**3/2], [dt**3/2, dt**2]])
-        q_angle = (process_noise_std[2]**2) * np.array([[dt**4/4, dt**3/2], [dt**3/2, dt**2]])
+        q_x = (self.real.process_noise_std[0]**2) * np.array([[self.real.DT**4/4, self.real.DT**3/2], [self.real.DT**3/2, self.real.DT**2]])
+        q_y = (self.real.process_noise_std[1]**2) * np.array([[self.real.DT**4/4, self.real.DT**3/2], [self.real.DT**3/2, self.real.DT**2]])
+        q_angle = (self.real.process_noise_std[2]**2) * np.array([[self.real.DT**4/4, self.real.DT**3/2], [self.real.DT**3/2, self.real.DT**2]])
         
         self.Q = np.zeros((6, 6))
         self.Q[0:2, 0:2] = q_x
@@ -284,9 +301,9 @@ class KalmanFilter:
         self.Q[4:6, 4:6] = q_angle
         # Measurement noise covariance (R) #测量噪声协方差
         # 测量噪声协方差R
-        self.R = np.diag([measurement_noise_std[0]**2, 
-                         measurement_noise_std[1]**2, 
-                         measurement_noise_std[2]**2])
+        self.R = np.diag([self.real.measurement_noise_std[0]**2, 
+                         self.real.measurement_noise_std[1]**2, 
+                         self.real.measurement_noise_std[2]**2])
 
         # State covariance matrix (P) #状态协方差矩阵
         self.P = np.eye(6) * initial_state_uncertainty
@@ -296,10 +313,10 @@ class KalmanFilter:
                            [0, 0, 1, 0, 0, 0],
                            [0, 0, 0, 0, 1, 0]])
         self.B = np.array([
-            [0.5*dt**2, 0],
-            [dt,        0],
-            [0,         0.5*dt**2],
-            [0,         dt],
+            [0.5*self.real.DT**2, 0],
+            [self.real.DT,        0],
+            [0,         0.5*self.real.DT**2],
+            [0,         self.real.DT],
             [0,         0],
             [0,         0]
         ])
@@ -309,12 +326,12 @@ class KalmanFilter:
         acc_global = self.estrobot.acc_global  # 实现坐标转换
         ax, ay = acc_global[0], acc_global[1]
         # 更新位置
-        self.state[0] += self.state[1] * DT + 0.5 * ax * DT**2
-        self.state[2] += self.state[3] * DT + 0.5 * ay * DT**2
-        self.state[4] += self.state[5] * DT # Update angle position
+        self.state[0] += self.state[1] * self.real.DT + 0.5 * ax * self.real.DT**2
+        self.state[2] += self.state[3] * self.real.DT + 0.5 * ay * self.real.DT**2
+        self.state[4] += self.state[5] * self.real.DT # Update angle position
         # 应用加速度
-        self.state[1] += ax * DT  # x方向速度
-        self.state[3] += ay * DT  # y方向速度
+        self.state[1] += ax * self.real.DT  # x方向速度
+        self.state[3] += ay * self.real.DT  # y方向速度
         # 更新协方差
         self.P = self.F @ self.P @ self.F.T + self.Q
 
@@ -369,15 +386,14 @@ class KalmanFilter:
         
     
 class Laserposition(Node):
+
     def __init__(self,kalman_filter,est_robot):
         super().__init__('laser_position_node')
         self.publisher_=self.create_publisher(LaserPosition,'/ally/robot1/laser_position',10)#发布激光位置数据，发布到/ally/robot1/laser_position，队列长度为10，发布的数据类型为LaserPosition，LaserPosition是自定义的数据类型
         time_period= 0.2 #`发布激光位置数据的时间间隔  20Hz`
         self.timer=self.create_timer(time_period,self.timer_callback)
-        self.i = 0
         self.kalman_filter = kalman_filter
         self.est_robot = est_robot
-
 
     def timer_callback(self):
         self.time_start = time.time()
@@ -399,6 +415,7 @@ class Laserposition(Node):
         self.get_logger().info(f"Published: {msg.x}, {msg.y}, {msg.angle}")
 
 def main(args=None):
+    args = remove_ros_args(args)
     rclpy.init(args=args)
     real_node = Real()
     est_robot = EstRobot(real_node)
