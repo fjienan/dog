@@ -47,15 +47,16 @@ class Real(Node):
         self.yaw_rate = 0.0  # 初始化 yaw_rate
         self.acc_x = 0.0  # 初始化 x 方向加速度
         self.acc_y = 0.0  # 初始化 y 方向加速度 # 初始化 yaw
+        
         self.declare_parameters(
             namespace='',
             parameters=[
-                ('DT',rclpy.Parameter.Type.DOUBLE),
-                ('FIELD_SIZE',rclpy.Parameter.Type.INTEGER_ARRAY),
-                ('process_noise_std',rclpy.Parameter.Type.DOUBLE_ARRAY),
-                ('measurement_noise_std',rclpy.Parameter.Type.DOUBLE_ARRAY),
-                ('START_POINT',rclpy.Parameter.Type.DOUBLE_ARRAY),
-                ('LASER_ALLOWED_NOISE',rclpy.Parameter.Type.DOUBLE)
+                ('DT',0.1),
+                ('FIELD_SIZE',[15,8]),
+                ('process_noise_std',[0.1,0.1,0.05]),
+                ('measurement_noise_std',[0.1,0.1,0.05]),
+                ('START_POINT',[7.5,4.0]),
+                ('LASER_ALLOWED_NOISE',0.1)
             ]
         )
         self.DT = self.get_parameter('DT').get_parameter_value().double_value
@@ -389,7 +390,7 @@ class Laserposition(Node):
 
     def __init__(self,kalman_filter,est_robot):
         super().__init__('laser_position_node')
-        self.publisher_=self.create_publisher(LaserPosition,'/ally/robot1/laser_position',10)#发布激光位置数据，发布到/ally/robot1/laser_position，队列长度为10，发布的数据类型为LaserPosition，LaserPosition是自定义的数据类型
+        self.publisher_=self.create_publisher(LaserPosition,'/ally/robot1/laser_position_node',10)#发布激光位置数据，发布到/ally/robot1/laser_position，队列长度为10，发布的数据类型为LaserPosition，LaserPosition是自定义的数据类型
         time_period= 0.2 #`发布激光位置数据的时间间隔  20Hz`
         self.timer=self.create_timer(time_period,self.timer_callback)
         self.kalman_filter = kalman_filter
