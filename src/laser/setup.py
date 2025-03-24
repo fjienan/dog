@@ -26,7 +26,8 @@ setup(
     entry_points={
         'console_scripts': [
             # 确保Real.py作为可执行节点注册
-            'laser_position = laser.Real:main',
+            'laser_position_1 = laser.Real:main',
+            'soliloquist = laser.test:main',
         ],
     },
 )

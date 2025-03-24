@@ -13,8 +13,8 @@ def generate_launch_description():
     # 创建节点配置
     laser_node = Node(
         package='laser',          # 包名
-        executable='laser_position', # 可执行文件名称（在setup.py中定义）
-        name='laser_position',   # 节点名称
+        executable='laser_position_1', # 可执行文件名称（在setup.py中定义）
+        name='laser_position_1',   # 节点名称
         parameters=[params_file] # 加载参数文件
     )
     

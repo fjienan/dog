@@ -29,7 +29,7 @@ LASER_ANGLES = [0, np.deg2rad(72), np.deg2rad(144), np.deg2rad(216), np.deg2rad(
 
 class Real(Node):
     def __init__(self):
-        super().__init__('laser_position')
+        super().__init__('laser_position_1')
         #
         self.subscription_laser = self.create_subscription(
             LaserScan,
@@ -47,7 +47,6 @@ class Real(Node):
         self.yaw_rate = 0.0  # 初始化 yaw_rate
         self.acc_x = 0.0  # 初始化 x 方向加速度
         self.acc_y = 0.0  # 初始化 y 方向加速度 # 初始化 yaw
-        
         self.declare_parameters(
             namespace='',
             parameters=[
@@ -56,17 +55,31 @@ class Real(Node):
                 ('process_noise_std',[0.1,0.1,0.05]),
                 ('measurement_noise_std',[0.1,0.1,0.05]),
                 ('START_POINT',[7.5,4.0]),
-                ('LASER_ALLOWED_NOISE',0.1)
+                ('LASER_ALLOWED_NOISE',0.1),
+                ('FREQUENCY',1.00)
             ]
         )
+        # # 获取参数值（覆盖默认值）
+        
         self.DT = self.get_parameter('DT').get_parameter_value().double_value
         self.FIELD_SIZE = self.get_parameter('FIELD_SIZE').get_parameter_value().integer_array_value
         self.process_noise_std = self.get_parameter('process_noise_std').get_parameter_value().double_array_value
         self.measurement_noise_std = self.get_parameter('measurement_noise_std').get_parameter_value().double_array_value
         self.START_POINT = self.get_parameter('START_POINT').get_parameter_value().double_array_value
         self.LASER_ALLOWED_NOISE = self.get_parameter('LASER_ALLOWED_NOISE').get_parameter_value().double_value
+        self.FREQUENCY = self.get_parameter('FREQUENCY').get_parameter_value().double_value
 
-    
+        # 打印参数值（调试用）
+        self.get_logger().info(f"""
+        Loaded Parameters:
+        - DT = {self.DT}
+        - FIELD_SIZE = {self.FIELD_SIZE}
+        - process_noise_std = {self.process_noise_std}
+        - measurement_noise_std = {self.measurement_noise_std}
+        - START_POINT = {self.START_POINT}
+        - LASER_ALLOWED_NOISE = {self.LASER_ALLOWED_NOISE}
+        - FREQUENCY = {self.FREQUENCY}
+        """)
        
     def scan_callback(self, msg):
         # 获取激光雷达数据并且进行可视化，使用matplotlib
@@ -388,13 +401,13 @@ class KalmanFilter:
     
 class Laserposition(Node):
 
-    def __init__(self,kalman_filter,est_robot):
+    def __init__(self,kalman_filter,real_node):
         super().__init__('laser_position_node')
         self.publisher_=self.create_publisher(LaserPosition,'/ally/robot1/laser_position_node',10)#发布激光位置数据，发布到/ally/robot1/laser_position，队列长度为10，发布的数据类型为LaserPosition，LaserPosition是自定义的数据类型
-        time_period= 0.2 #`发布激光位置数据的时间间隔  20Hz`
-        self.timer=self.create_timer(time_period,self.timer_callback)
         self.kalman_filter = kalman_filter
-        self.est_robot = est_robot
+        self.real = real_node
+        time_period= self.real.FREQUENCY #`发布激光位置数据的时间间隔  20Hz`
+        self.timer=self.create_timer(time_period,self.timer_callback)
 
     def timer_callback(self):
         self.time_start = time.time()
@@ -416,19 +429,20 @@ class Laserposition(Node):
         self.get_logger().info(f"Published: {msg.x}, {msg.y}, {msg.angle}")
 
 def main(args=None):
-    args = remove_ros_args(args)
+    # args = remove_ros_args(args)
     rclpy.init(args=args)
     real_node = Real()
     est_robot = EstRobot(real_node)
     kalman_filter = KalmanFilter(est_robot,real_node)
-    laser_position = Laserposition(kalman_filter,est_robot)
+    laser_position = Laserposition(kalman_filter,real_node)
     # # 独立ROS线程
     # ros_spin_thread = threading.Thread(target=rclpy.spin, args=(real_node,))
     # ros_spin_thread.daemon = True
     # ros_spin_thread.start()
     executor = MultiThreadedExecutor(num_threads=4)
-    executor.add_node(real_node)
     executor.add_node(laser_position)
+    executor.add_node(real_node)
+   
 
     try:
         
@@ -452,4 +466,4 @@ def main(args=None):
         rclpy.shutdown()
             
 if __name__ == '__main__':
-    main()
+    main()  
