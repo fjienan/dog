@@ -28,6 +28,9 @@ setup(
             # 确保Real.py作为可执行节点注册
             'laser_position_1 = laser.Real:main',
             'soliloquist = laser.test:main',
+            'ros2publisher = laser.ros2publisher:main',
+            'Real = laser.Real:main',
+            
         ],
     },
 )

@@ -15,7 +15,7 @@ from rclpy.executors import MultiThreadedExecutor
 # 设置字体为 SimHei 以支持中文显示
 # rcParams['font.sans-serif'] = ['SimHei']
 # rcParams['axes.unicode_minus'] = False
-
+#12.47cm
 # 模拟参数
 LASER_data_flag = 1		# 是否有LASER	数据
 # self.real.DT = 0.05                    # IMU 时间步长
@@ -32,15 +32,15 @@ class Real(Node):
         super().__init__('laser_position_1')
         #
         self.subscription_laser = self.create_subscription(
-            LaserScan,
-            '/ally/robot1/scan',
+            Float32MultiArray,
+            'sensor_data',
             self.scan_callback,
             10)
         self.subscription_laser  # 防止未使用的变量警告
         self.real_laser=[-1] * len(LASER_ANGLES)
         self.subscription_imu = self.create_subscription(
             Imu,
-            '/ally/robot1/imu',
+            'livox/imu',
             self.listener_callback,
             10)
         self.subscriptions  # 防止未使用的变量警告
@@ -50,13 +50,14 @@ class Real(Node):
         self.declare_parameters(
             namespace='',
             parameters=[
-                ('DT',0.1),
-                ('FIELD_SIZE',[15,8]),
-                ('process_noise_std',[0.1,0.1,0.05]),
-                ('measurement_noise_std',[0.1,0.1,0.05]),
-                ('START_POINT',[7.5,4.0]),
-                ('LASER_ALLOWED_NOISE',0.1),
-                ('FREQUENCY',1.00)
+                ('DT', 0.1),
+                ('FIELD_SIZE', [15,8]),
+                ('process_noise_std', [0.1,0.1,0.05]),
+                ('measurement_noise_std', [0.1,0.1,0.05]),
+                ('START_POINT', [7.5,4.0]),
+                ('LASER_ALLOWED_NOISE', 0.1),
+                ('FREQUENCY', 1.00),
+                ('DELTA_DISTANCE', 0.01)
             ]
         )
         # # 获取参数值（覆盖默认值）
@@ -68,6 +69,7 @@ class Real(Node):
         self.START_POINT = self.get_parameter('START_POINT').get_parameter_value().double_array_value
         self.LASER_ALLOWED_NOISE = self.get_parameter('LASER_ALLOWED_NOISE').get_parameter_value().double_value
         self.FREQUENCY = self.get_parameter('FREQUENCY').get_parameter_value().double_value
+        self.DELTA_DISTANCE = self.get_parameter('DELTA_DISTANCE').get_parameter_value().double_value
 
         # 打印参数值（调试用）
         self.get_logger().info(f"""
@@ -79,6 +81,7 @@ class Real(Node):
         - START_POINT = {self.START_POINT}
         - LASER_ALLOWED_NOISE = {self.LASER_ALLOWED_NOISE}
         - FREQUENCY = {self.FREQUENCY}
+        - DELTA_DISTANCE = {self.DELTA_DISTANCE}
         """)
        
     def scan_callback(self, msg):
@@ -87,8 +90,7 @@ class Real(Node):
         # 计算距离最近的障碍物距离
         #开始计时
         
-        ranges = np.array(msg.ranges)
-        self.real_laser = [ranges[0], ranges[72], ranges[144], ranges[216], ranges[288]]
+        self.real_laser = msg.data
         # self.get_logger().info(f"Real laser data: {self.real_laser}\n")
     def listener_callback(self, msg):
         # 从消息中获取四元数
@@ -105,8 +107,8 @@ class Real(Node):
         # self.get_logger().info(f"Yaw acceleration from IMU: {self.yaw_acc}")
         # 获取加速度
         linear_acceleration = msg.linear_acceleration
-        self.acc_x = linear_acceleration.x
-        self.acc_y = linear_acceleration.y
+        self.acc_x = -linear_acceleration.x
+        self.acc_y = -linear_acceleration.y
         # self.get_logger().info(f"Acceleration - x: {self.acc_x}, y: {self.acc_y}\n")
         (roll, pitch, self.yaw) = euler_from_quaternion(orientation_list)
         # 打印 yaw 角
@@ -124,9 +126,11 @@ class EstRobot:
         self.acc_body = np.zeros((2, 1))  # 初始化为零
         self.acc_global = np.zeros((2, 1))  # 新增必要属性
         self.start_time = 0
+        self.pre_angular_rate = 0
+
     def update_imu(self):
         # print(f"Data before IMU update: pos({self.est_pos[0]:.4f}, {self.est_pos[1]:.4f}), vel({self.est_vel_x:.4f}, {self.est_vel_y:.4f}), yaw({self.est_yaw:.4f})")
-        self.start_time = time.time()
+        self.
         current_acc_x = float(self.real.acc_x)
         current_acc_y = float(self.real.acc_y)
         current_yaw_rate = float(self.real.yaw_rate)
@@ -189,7 +193,7 @@ class EstRobot:
         theory_length_map=[0] *len(LASER_ANGLES)
         # 计算激光的理论长度
         for i in range(len(LASER_ANGLES)): #计算激光的理论长度
-            data.append(laser_data[i]) #获取每个激光的数据
+            data.append(laser_data[i]+self.real.DELTA_DISTANCE) #获取每个激光的数据
             if data[i] == -1:
                 flag[i] = 1
                 continue
@@ -254,7 +258,7 @@ class EstRobot:
                         laser_x.append(self.real.FIELD_SIZE[0] - data[i] * np.cos(single_yaw) if np.cos(single_yaw) > 0 else -data[i] * np.cos(single_yaw))
                     else:
                         laser_y.append(self.real.FIELD_SIZE[1] - data[i] * np.sin(single_yaw) if np.sin(single_yaw) > 0 else -data[i] * np.sin(single_yaw))
-
+        
         # print(f"Data before Laser update: pos({self.est_pos[0]:.4f}, {self.est_pos[1]:.4f}), yaw({self.est_yaw:.4f})")
         if len(laser_x) == 0:
             laser_x.append(self.est_pos[0])
@@ -378,6 +382,7 @@ class KalmanFilter:
             self.estrobot.est_pos = np.array([self.state[0, 0], self.state[2, 0]])
             self.estrobot.est_yaw = self.state[4, 0] % np.pi/2 # 提取标量
             print('hhhhhhhhhhhhhhh')
+
             print(f"Kalman: pos({self.estrobot.est_pos[0]:.1f}, {self.estrobot.est_pos[1]:.1f}), vel({self.estrobot.est_vel_x:.1f}, {self.estrobot.est_vel_y:.1f}), yaw({self.estrobot.est_yaw:.1f})\n")
             self.end_time = time.time()
             return self.final_state
@@ -421,8 +426,8 @@ class Laserposition(Node):
                          self.kalman_filter.state[4, 0]]
         # 发布消息
         msg = LaserPosition()
-        msg.x = float(statement[0])
-        msg.y = float(statement[1])
+        msg.x = float(statement[0])-self.real.FIELD_SIZE[0]
+        msg.y = float(statement[1])-self.real.FIELD_SIZE[1]
         msg.angle = float(statement[2])
         print(self.time_end - self.time_start)
         self.publisher_.publish(msg)
@@ -467,3 +472,6 @@ def main(args=None):
             
 if __name__ == '__main__':
     main()  
+
+    ##Question 1 why the velocity will increase when the laser 1 is zhedanged"
+    ##Question 2 why the angle is 0 ,i think it at least will show a wrong number"

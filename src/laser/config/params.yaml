@@ -2,8 +2,9 @@ laser_position_1:  # 必须与节点名称完全一致
     ros__parameters:
         DT: 0.01
         START_POINT: [7.5,4.0]
-        LASER_ALLOWED_NOISE: 2.0
-        process_noise_std: [0.1,0.1,0.05]
-        measurement_noise_std: [0.5,0.5,0.1]
+        LASER_ALLOWED_NOISE: 1.5
+        process_noise_std: [0.1,0.1,0.05] # ax ay y_v
+        measurement_noise_std: [0.01,0.5,0.1] # x y angle
         FIELD_SIZE: [15,8]
         FREQUENCY: 0.2
+        DELTA_DISTANCE: 0.1247 # m
