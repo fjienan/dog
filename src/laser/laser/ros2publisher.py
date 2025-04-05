@@ -60,7 +60,7 @@ class ModbusSensorNode(Node):
         for retry in range(3):
             try:
                 registers = inst.read_registers(REGISTER_ADDR, 2)
-                return (registers[0] << 8) + registers[1]
+                return (registers[0] << 16) + registers[1]
             except minimalmodbus.NoResponseError:
                 self.get_logger().warn(
                     f"{inst.port_name}地址{inst.address}无响应，第{retry+1}次重试...",
@@ -88,13 +88,16 @@ class ModbusSensorNode(Node):
             msg = Float32MultiArray()
             msg.data = distances
             self.publisher.publish(msg)
-            
+            # self.get_logger().info(
+            #     f"发布数据: {[f'{d:.4f}' if not d!=d else 'NaN' for d in distances]}",
+            #     throttle_duration_sec=1
+            # )
             # 计算并记录耗时
-            total_time = (time.perf_counter() - start_time) * 1000
-            self.get_logger().info(
-                f"数据: {[f'{d:.4f}' if not d!=d else 'NaN' for d in distances]} | 耗时: {total_time:.2f}ms",
-                throttle_duration_sec=1
-            )
+            # total_time = (time.perf_counter() - start_time) * 1000
+            # self.get_logger().info(
+            #     f"数据: {[f'{d:.4f}' if not d!=d else 'NaN' for d in distances]} | 耗时: {total_time:.2f}ms",
+            #     throttle_duration_sec=1
+            # )
             
         except Exception as e:
             self.get_logger().error(f"系统错误: {str(e)}")
