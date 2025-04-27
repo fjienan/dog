@@ -7,8 +7,10 @@
   <maintainer email="fjienan@example.com">furry</maintainer>
   <license>TODO: License declaration</license>
 
+  <depend>geometry_msgs</depend>
+
   <exec_depend>rclpy</exec_depend>
-  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>rosidl_generatoe_py</exec_depend>
   <exec_depend>sensor_msgs</exec_depend>
   <exec_depend>laser_interfaces</exec_depend>
   <exec_depend>launch_ros</exec_depend>

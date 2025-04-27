@@ -7,7 +7,7 @@ def generate_launch_description():
     # 声明参数
     serial_port_arg = DeclareLaunchArgument(
         'serial_port',
-        default_value='/dev/ttyACM1',
+        default_value='/dev/ttyACM0',
         description='串口设备路径'
     )
     

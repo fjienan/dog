@@ -1,14 +1,16 @@
 import rclpy
 from rclpy.utilities import remove_ros_args
 from rclpy.node import Node
-from laser_position.msg._laser_position import LaserPosition 
+# from laser_position.msg._laser_position import LaserPosition
+from geometry_msgs.msg import PoseStamped
 import numpy as np
 import time
 import threading
 from scipy.optimize import fsolve
-from sensor_msgs.msg import Imu
-from sensor_msgs.msg import LaserScan
+# from sensor_msgs.msg import Imu
+# from sensor_msgs.msg import LaserScan
 from tf_transformations import euler_from_quaternion
+from tf_transformations import quaternion_from_euler
 from rclpy.executors import MultiThreadedExecutor
 from std_msgs.msg import Float32MultiArray
 from geometry_msgs.msg import QuaternionStamped, Vector3Stamped
@@ -19,7 +21,6 @@ from geometry_msgs.msg import QuaternionStamped, Vector3Stamped
 #12.47cm
 # 模拟参数
 LASER_data_flag = 1		# 是否有LASER	数据
-# self.real.DT = 0.05                    # IMU 时间步长
 # FIELD_SIZE = [15, 8]           # 场地大小
 LASER_ANGLES = [0, np.deg2rad(72), np.deg2rad(144), np.deg2rad(216), np.deg2rad(288)]
 # self.real.precess_noise_std = [0.1, 0.1, 0.05],
@@ -49,11 +50,25 @@ class Real(Node):
             # print(f"Data before IMU update: pos({self.est_pos[0]:.4f}, {self.est_pos[1]:.4f}), vel({self.est_vel_x:.4f}, {self.est_vel_y:.4f}), yaw({self.est_yaw:.4f})")
             if not hasattr(self, "initial_angle"):
                 self.initial_angle = self.real.yaw
-            # self.real.get_logger().info(f"Origin data from IMU: acc_x: {self.real.acc_x}, acc_y: {self.real.acc_y}, yaw_rate: {self.real.yaw_rate}\n")
-        
+            
             # 更新角度
             self.est_yaw = self.real.yaw - self.initial_angle
-            # self.real.get_logger().info(f"--------------est_yaw: {self.est_yaw:.4f}, real_yaw: {self.real.yaw:.4f}\n")
+
+            # 测零漂
+            if not hasattr(self, "imu_update_time"):
+                self.imu_update_time = 0
+                self.mean_imu_yaw = 0
+                self.mean_imu_acc_x = 0
+                self.mean_imu_acc_y = 0
+            self.mean_imu_yaw = (self.mean_imu_yaw * self.imu_update_time + self.est_yaw) / (self.imu_update_time + 1)
+            self.mean_imu_acc_x = (self.mean_imu_acc_x * self.imu_update_time + self.real.acc_x) / (self.imu_update_time + 1)
+            self.mean_imu_acc_y = (self.mean_imu_acc_y * self.imu_update_time + self.real.acc_y) / (self.imu_update_time + 1)
+            self.imu_update_time += 1
+            if self.imu_update_time % 50 == 0:
+                # 输出到文件和控制台
+                # with open("/home/ares/dog/imu_data.txt", "a") as f:
+                #     f.write(f"Mean: IMU Yaw: {self.mean_imu_yaw:.4f}, Acc X: {self.mean_imu_acc_x:.4f}, Acc Y: {self.mean_imu_acc_y:.4f}, Update Time: {self.imu_update_time}\n")
+                self.real.get_logger().info(f"Mean: IMU Yaw: {self.mean_imu_yaw:.4f}, Acc X: {self.mean_imu_acc_x:.4f}, Acc Y: {self.mean_imu_acc_y:.4f}, Update Time: {self.imu_update_time}")
             
             # 确保三角函数输入为标量
             cos_yaw = np.cos(self.est_yaw)
@@ -84,22 +99,30 @@ class Real(Node):
 
             self.acc_global = R @ self.acc_body
 
-            # 运动学更新
-            self.est_vel_x += self.acc_global[0, 0] * self.real.DT
-            self.est_vel_y += self.acc_global[1, 0] * self.real.DT
-            self.est_pos[0] += self.est_vel_x * self.real.DT
-            self.est_pos[1] += self.est_vel_y * self.real.DT
+            if not hasattr(self, "last_time"):
+                self.last_time = time.time()
+            else:
+                current_time = time.time()
+                dt = current_time - self.last_time
+                # 运动学更新
+                self.est_vel_x += self.acc_global[0, 0] * dt
+                self.est_vel_y += self.acc_global[1, 0] * dt
+                self.est_pos[0] += self.est_vel_x * dt
+                self.est_pos[1] += self.est_vel_y * dt
+                # 更新最后时间
+                self.last_time = current_time
 
-            # self.real.get_logger().info(f"IMU: pos({self.est_pos[0]:.4f}, {self.est_pos[1]:.4f}), vel({self.est_vel_x:.4f}, {self.est_vel_y:.4f}), yaw: {self.est_yaw:.4f}), DT: {self.real.DT:.4f})")
+            if self.imu_update_time % 1000 == 0:
+                self.real.get_logger().info(f"IMU: pos({self.est_pos[0]:.4f}, {self.est_pos[1]:.4f}), vel({self.est_vel_x:.4f}, {self.est_vel_y:.4f}), yaw: {self.est_yaw:.4f}, last_time: {self.last_time:.4f}")
 
         def update_laser(self):
-            self.update_imu()
             global LASER_data_flag
             laser_data = self.real.real_laser.copy()
 
             # 过滤无效数据 (NaN/inf)
             # laser_data = np.nan_to_num(laser_data, nan=-1, posinf=self.real.FIELD_SIZE[0], neginf=0.0)
             laser_data = [7.5 - 0.1247,4.206 - 0.1247,6.805 - 0.1247,6.805 - 0.1247,4.206 - 0.1247]
+            # laser_data = [0.0, 0.0, 0.0, 0.0, 0.0]
             
             laser_x = []
             laser_y = []
@@ -115,31 +138,31 @@ class Real(Node):
                     flag[i] = 1
                     continue
                 laser_yaw = (LASER_ANGLES[i] + self.est_yaw) # % (2 * np.pi)
+                d_x = d_y = 1145141919810
                 if laser_yaw == 0: 		#当激光打在右边界上时
-                    thorey_length = self.real.FIELD_SIZE[0] - self.est_pos[0]
-                    theory_length_map[i]=thorey_length
+                    thorey_length = d_x = self.real.FIELD_SIZE[0] - self.est_pos[0]
                 elif laser_yaw == np.pi: 		#当激光打在左边界上时
-                    thorey_length =  self.est_pos[0]
-                    theory_length_map[i]=thorey_length
+                    thorey_length = d_x = self.est_pos[0]
                 elif laser_yaw == np.pi / 2: 		#当激光打在上边界上时
-                    thorey_length =  self.real.FIELD_SIZE[1] - self.est_pos[1]
-                    theory_length_map[i]=thorey_length
+                    thorey_length = d_y = self.real.FIELD_SIZE[1] - self.est_pos[1]
                 elif laser_yaw == -np.pi / 2:		 #当激光打在下边界上时
-                    thorey_length =  self.est_pos[1]
-                    theory_length_map[i]=thorey_length
+                    thorey_length = d_y = self.est_pos[1]
                 else: 		#当激光打在其他地方时
                     d_x = (self.real.FIELD_SIZE[0] - self.est_pos[0]) / np.cos(laser_yaw) if np.cos(laser_yaw) > 0 else -self.est_pos[0] / np.cos(laser_yaw)
                     d_y = (self.real.FIELD_SIZE[1] - self.est_pos[1]) / np.sin(laser_yaw) if np.sin(laser_yaw) > 0 else -self.est_pos[1] / np.sin(laser_yaw)
                     thorey_length = d_x if d_x < d_y else d_y
-                    theory_length_map[i]=thorey_length
-                    if abs(data[i] - thorey_length) <= self.real.LASER_ALLOWED_NOISE and d_x > d_y:
-                        if np.sin(laser_yaw) > 0:
-                            up_width.append([data[i], i])
-                        else:
-                            down_width.append([data[i], i])
-                    elif abs(data[i] - thorey_length) > self.real.LASER_ALLOWED_NOISE: #当激光数据与理论数据差距大于允许的噪声时,认为激光数据无效
-                        flag[i] = 1 	#-1代表激光数据无效
-            # print(f"theoretical length: {theory_length_map}")
+                if abs(data[i] - thorey_length) <= self.real.LASER_ALLOWED_NOISE and d_x > d_y:
+                    if np.sin(laser_yaw) > 0:
+                        up_width.append([data[i], i])
+                    else:
+                        down_width.append([data[i], i])
+                elif abs(data[i] - thorey_length) > self.real.LASER_ALLOWED_NOISE: #当激光数据与理论数据差距大于允许的噪声时,认为激光数据无效
+                    flag[i] = 1 	#-1代表激光数据无效
+                theory_length_map[i] = thorey_length
+            
+            # self.real.get_logger().info(f"Laser flag: {flag}, data: {data}")
+            # self.real.get_logger().info(f"Theorey length: {theory_length_map}")
+            # self.real.get_logger().info(f"Up width: {up_width}, Down width: {down_width}")
 
             def func(angle): 	#求解方程
                 lengh_massure_1 = []	 #储存上激光的信息 
@@ -150,10 +173,12 @@ class Real(Node):
                 for [dis, id] in down_width:  # 扫描下激光的信息
                     lengh_massure_2.append(abs(dis * np.sin(angle + LASER_ANGLES[id])))  # 点到下边界的距离
                 mean_lengh_massure_2 = np.mean(lengh_massure_2)
-                return mean_lengh_massure_1 + mean_lengh_massure_2 +0.1- self.real.FIELD_SIZE[1]  # 返回方程的值
+                return mean_lengh_massure_1 + mean_lengh_massure_2 - self.real.FIELD_SIZE[1]  # 返回方程的值
 
             laser_est_yaw = fsolve(func, x0=self.est_yaw)[0]  # x0 是浮点初始猜测
             # laser_est_yaw %= 2 * np.pi
+
+            # self.real.get_logger().info(f"func(0): {func(0)}, func(laser_est_yaw): {func(laser_est_yaw)}")
             
             for i in range(len(LASER_ANGLES)): #用求解出的角度计算出坐标
                 if flag[i] == 1: #数据无效
@@ -178,56 +203,57 @@ class Real(Node):
             
             # self.real.get_logger().info(f"Data before Laser update: pos({self.est_pos[0]:.4f}, {self.est_pos[1]:.4f}), yaw({self.est_yaw:.4f})")
 
+            LASER_data_flag = 1
+
             if len(laser_x) == 0:
                 laser_x.append(self.est_pos[0])
-                # self.real.get_logger().info(" ^v^ ^v^ ^v^ ^v^ ^v^ in this place, the laser cann`t detect x position precisely")
                 LASER_data_flag = 0
             if len(laser_y) == 0:
                 laser_y.append(self.est_pos[1])
-                # self.real.get_logger().info(" ^v^ ^v^ ^v^ ^v^ ^v^ in this place, the laser cann`t detect y position precisely")
                 LASER_data_flag = 0
 
             final_x = np.mean(laser_x)
             final_y = np.mean(laser_y)
-            # print(f"Laser valid flag: {flag}")
-            # print(f"Laser data: {laser_data}")
-            # print(f"Laser estimate: ({final_x:.4f}, {final_y:.4f}), angle: {laser_est_yaw:.4f}\n")
-            # print(f"  Laser_x: {laser_x}, Laser_y: {laser_y}\n")
-            if data == [-1] * len(LASER_ANGLES):
-                LASER_data_flag = 1
-            else:
-                LASER_data_flag = 1
+
+            # if data == [-1] * len(LASER_ANGLES):
+            #     LASER_data_flag = 1
+            # else:
+            #     LASER_data_flag = 1
             
             # self.real.get_logger().info(f"Laser: flag: {flag}, data: {data}, up_width: {up_width}, down_width: {down_width}, estimate: ({final_x:.4f}, {final_y:.4f}), angle: {laser_est_yaw:.4f}")
-            self.real.get_logger().info(f"est_yaw: {self.est_yaw:.4f}, laser_est_yaw: {laser_est_yaw:.4f}, final_x: {final_x:.4f}, final_y: {final_y:.4f}\n")
+            self.real.get_logger().info(f"Laser: position (x: {final_x:.4f}, y: {final_y:.4f}), laser_est_yaw: {laser_est_yaw:.4f}")
+
             return [final_x, final_y], self.est_yaw
 
     class KalmanFilter:
 
-        def __init__(self,estrobot,real, # [ax, ay],   
-                    initial_state_vector=[0.0, 0.0, 0.0, 0.0, 0.0],
-                    initial_state_uncertainty=1.0
-                    ):
+        def __init__(self,estrobot,real):
             self.estrobot=estrobot
             self.state_dim = 5
-            self.real=real 
-            self.end_time = 0.0
+            self.real=real
+            self.last_time = time.time()
+            self.initial_state_vector=[0.0, 0.0, 0.0, 0.0, 0.0],
+            self.initial_state_uncertainty=1.0
+
+        def predict(self):
+            dt = time.time() - self.last_time
+            self.last_time = time.time()
             
             # Initialize state vector [x, x_vel, y, y_vel, angle]
-            self.state = np.array(initial_state_vector, dtype=np.float64).reshape((5, 1))
+            self.state = np.array(self.initial_state_vector, dtype=np.float64).reshape((5, 1))
             self.state[0],self.state[2] = [float(self.real.START_POINT[0]),float(self.real.START_POINT[1])]
             # 修改状态转移矩阵（6x6）
             self.F = np.array([
-                [1, self.real.DT, 0, 0,  0],
+                [1, dt, 0, 0,  0],
                 [0, 1,  0, 0,  0],
-                [0, 0,  1, self.real.DT, 0],
+                [0, 0,  1, dt, 0],
                 [0, 0,  0, 1,  0],
                 [0, 0,  0, 0,  1]
             ])
 
             # 过程噪声协方差Q（基于加速度噪声）
-            q_x = (self.real.process_noise_std[0]**2) * np.array([[self.real.DT**4/4, self.real.DT**3/2], [self.real.DT**3/2, self.real.DT**2]])
-            q_y = (self.real.process_noise_std[1]**2) * np.array([[self.real.DT**4/4, self.real.DT**3/2], [self.real.DT**3/2, self.real.DT**2]])
+            q_x = (self.real.process_noise_std[0]**2) * np.array([[dt**4/4, dt**3/2], [dt**3/2, dt**2]])
+            q_y = (self.real.process_noise_std[1]**2) * np.array([[dt**4/4, dt**3/2], [dt**3/2, dt**2]])
             q_angle = self.real.process_noise_std[2]**2 
             
             self.Q = np.zeros((5, 5))
@@ -241,42 +267,43 @@ class Real(Node):
                             self.real.measurement_noise_std[2]**2])
 
             # State covariance matrix (P) #状态协方差矩阵
-            self.P = np.eye(5) * initial_state_uncertainty
+            self.P = np.eye(5) * self.initial_state_uncertainty
             # Measurement matrix (H) (We are only measuring position and angle [x, y, angle]) 
             # #测量矩阵 (我们只测量位置和角度 [x, y, angle],使用激光雷达数据)
             self.H = np.array([[1, 0, 0, 0, 0],
                             [0, 0, 1, 0, 0],
                             [0, 0, 0, 0, 1]])
             self.B = np.array([
-                [0.5*self.real.DT**2, 0],
-                [self.real.DT,        0],
-                [0,         0.5*self.real.DT**2],
-                [0,         self.real.DT],
+                [0.5*dt**2, 0],
+                [dt,        0],
+                [0, 0.5*dt**2],
+                [0,        dt],
                 [0,         0],
             ])
-        def predict(self):
 
             acc_global = self.estrobot.acc_global  # 实现坐标转换
             ax, ay = acc_global[0], acc_global[1]
             # 更新位置
-            self.state[0] += self.state[1] * self.real.DT + 0.5 * ax * self.real.DT**2
-            self.state[2] += self.state[3] * self.real.DT + 0.5 * ay * self.real.DT**2
+            self.state[0] += self.state[1] * dt + 0.5 * ax * dt**2
+            self.state[2] += self.state[3] * dt + 0.5 * ay * dt**2
             # 应用加速度
-            self.state[1] += ax * self.real.DT  # x方向速度
-            self.state[3] += ay * self.real.DT  # y方向速度
+            self.state[1] += ax * dt  # x方向速度
+            self.state[3] += ay * dt  # y方向速度
             # 更新协方差
             self.P = self.F @ self.P @ self.F.T + self.Q
 
         def update(self):
+            global LASER_data_flag
+            # self.estrobot.update_imu()
+            laser_position, laser_position_angle = self.estrobot.update_laser()
+
             if LASER_data_flag == 1:
-                
-            # Measurement update using GPS position data (x, y, angle)
-            
-                laser_position, laser_position_angle = self.estrobot.update_laser()
+                LASER_data_flag = 0
+                # Measurement update using GPS position data (x, y, angle)
                 laser_position_x, laser_position_y = laser_position[0], laser_position[1]
                 z = np.array([laser_position_x, laser_position_y, laser_position_angle]).reshape((3, 1))
                 # 测量更新使用激光位置数据 (x, y, angle)
-                self.real.get_logger().info(f"z: {z}\n")
+                # self.real.get_logger().info(f"z: {z}\n")
                 # Kalman Gain (K)
                 S = np.dot(np.dot(self.H, self.P), self.H.T) + self.R #预测误差协方差矩阵 
                 K = np.dot(np.dot(self.P, self.H.T), np.linalg.inv(S)) #卡尔曼增益
@@ -294,11 +321,10 @@ class Real(Node):
                 self.estrobot.est_vel_x = self.state[1, 0]  # 提取标量
                 self.estrobot.est_vel_y = self.state[3, 0]  # 提取标量
                 self.estrobot.est_pos = np.array([self.state[0, 0], self.state[2, 0]])
-                self.estrobot.est_yaw = self.state[4, 0] % np.pi/2 # 提取标量
+                self.estrobot.est_yaw = self.state[4, 0] % (np.pi*2) # 提取标量
                 # print('hhhhhhhhhhhhhhh')
                 self.real.get_logger().info(f"self.final_state: {self.final_state}")
-                # self.real.get_logger().info(f"Kalman: pos({self.estrobot.est_pos[0]:.4f}, {self.estrobot.est_pos[1]:.4f}), vel({self.estrobot.est_vel_x:.4f}, {self.estrobot.est_vel_y:.4f}), yaw({self.estrobot.est_yaw:.4f})\n")
-                self.end_time = time.time()
+                self.real.get_logger().info(f"Kalman: pos({self.estrobot.est_pos[0]:.8f}, {self.estrobot.est_pos[1]:.4f}), vel({self.estrobot.est_vel_x:.4f}, {self.estrobot.est_vel_y:.4f}), yaw({self.estrobot.est_yaw:.4f})\n")
 
                 if self.estrobot.est_pos[0] > self.real.FIELD_SIZE[0] or self.estrobot.est_pos[1] > self.real.FIELD_SIZE[1]:
                     self.real.get_logger().info(f"Out of bounds: pos({self.estrobot.est_pos[0]:.4f}, {self.estrobot.est_pos[1]:.4f})\n")
@@ -319,7 +345,7 @@ class Real(Node):
                 self.final_state = [self.state[0], self.state[2], self.state[4]]
                 self.end_time = time.time()
                 
-                self.get_logger().info(f"Kalman (NO LASER): pos({self.estrobot.est_pos[0]:.4f}, {self.estrobot.est_pos[1]:.4f}), vel({self.estrobot.est_vel_x:.4f}, {self.estrobot.est_vel_y:.4f}), yaw({self.estrobot.est_yaw:.4f})\n")
+                self.real.get_logger().info(f"Kalman (NO LASER): pos({self.estrobot.est_pos[0]:.4f}, {self.estrobot.est_pos[1]:.4f}), vel({self.estrobot.est_vel_x:.4f}, {self.estrobot.est_vel_y:.4f}), yaw({self.estrobot.est_yaw:.4f})")
 
                 return self.final_state
 
@@ -346,10 +372,10 @@ class Real(Node):
             self.accel_callback,
             10
         )
-        hasattr(self,"initial_angle")#判断是否有初始角度
+        # hasattr(self,"initial_angle")#判断是否有初始角度
         
 
-        self.publisher_=self.create_publisher(LaserPosition,'/ally/robot1/laser_position_node',10)#发布激光位置数据，发布到/ally/robot1/laser_position，队列长度为10，发布的数据类型为LaserPosition，LaserPosition是自定义的数据类型
+        self.publisher_=self.create_publisher(PoseStamped,'/ally/robot1/laser_position_node',10)#发布激光位置数据，发布到/ally/robot1/laser_position，队列长度为10，发布的数据类型为LaserPosition，LaserPosition是自定义的数据类型
 
         self.yaw = 0.0  # 初始化 yaw_rate
         self.acc_x = 0.0  # 初始化 x 方向加速度
@@ -357,7 +383,6 @@ class Real(Node):
         self.declare_parameters(
             namespace='',
             parameters=[
-                ('DT', 0.1),
                 ('FIELD_SIZE', [15.00,8.00]),
                 ('process_noise_std', [0.1,0.1,0.05]),
                 ('measurement_noise_std', [0.1,0.1,0.05]),
@@ -371,7 +396,6 @@ class Real(Node):
         )
         # # 获取参数值（覆盖默认值）
         
-        self.DT = self.get_parameter('DT').get_parameter_value().double_value
         self.FIELD_SIZE = self.get_parameter('FIELD_SIZE').get_parameter_value().double_array_value
         self.process_noise_std = self.get_parameter('process_noise_std').get_parameter_value().double_array_value
         self.measurement_noise_std = self.get_parameter('measurement_noise_std').get_parameter_value().double_array_value
@@ -385,7 +409,6 @@ class Real(Node):
         # 打印参数值（调试用）
         self.get_logger().info(f"""
         Loaded Parameters:
-        - DT = {self.DT}
         - FIELD_SIZE = {self.FIELD_SIZE}
         - process_noise_std = {self.process_noise_std}
         - measurement_noise_std = {self.measurement_noise_std}
@@ -399,8 +422,7 @@ class Real(Node):
         self.est_robot = self.EstRobot(self)
         self.kalman_filter = self.KalmanFilter(self.est_robot, self)
 
-        time_period=self.FREQUENCY
-        self.timer=self.create_timer(time_period,self.timer_callback)
+        self.timer=self.create_timer(self.FREQUENCY,self.timer_callback)
 
         self.imu_print_counter = 0
     
@@ -433,7 +455,7 @@ class Real(Node):
             yaw
         ]
         # 更新偏航角
-        self.yaw = self.euler_angles[2]
+        self.yaw = self.euler_angles[2] + 0.003
 
     def accel_callback(self, msg):
         """加速度数据处理"""
@@ -449,8 +471,12 @@ class Real(Node):
         #     f"Z: {self.acceleration[2]:.2f}"
         # )
 
-        self.acc_x = self.acceleration[0]
-        self.acc_y = self.acceleration[1]
+        self.acc_x = self.acceleration[0] + 0.1313
+        self.acc_y = self.acceleration[1] - 0.0490
+
+        # 调用 update_imu 更新
+        self.est_robot.update_imu()
+
     # def imu_callback(self, msg):
     #     # 从消息中获取四元数
     #     # time_1 = time.time()
@@ -488,10 +514,27 @@ class Real(Node):
                          self.kalman_filter.state[2, 0], 
                          self.kalman_filter.state[4, 0]]
         # 发布消息
-        msg = LaserPosition()
-        msg.x = -float(statement[0]) + self.FIELD_SIZE[0]
-        msg.y = -float(statement[1]) + self.FIELD_SIZE[1]
-        msg.angle = float(statement[2])
+        msg = PoseStamped()
+        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.header.frame_id = 'map'
+
+        #机器人坐标及姿态
+        msg.pose.position.x = -float(statement[0]) + self.FIELD_SIZE[0]
+        msg.pose.position.y = -float(statement[1]) + self.FIELD_SIZE[1]
+        msg.pose.position.z = 0.00
+
+        #将欧拉角转换成四元数
+        roll = 0.0
+        pitch = 0.0
+        yaw = float(statement[2])
+        q = quaternion_from_euler(roll, pitch, yaw)
+
+        #将四元数填充到消息中
+        msg.pose.orientation.x = q[0]
+        msg.pose.orientation.y = q[1]
+        msg.pose.orientation.z = q[2]
+        msg.pose.orientation.w = q[3]
+        
         # self.get_logger().info(f"{self.time_end - self.time_start}")
         self.publisher_.publish(msg)
         # self.get_logger().info(f"Published: {msg.x}, {msg.y}, {msg.angle}")
