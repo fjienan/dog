@@ -3,6 +3,7 @@ from rclpy.utilities import remove_ros_args
 from rclpy.node import Node
 # from laser_position.msg._laser_position import LaserPosition
 from geometry_msgs.msg import PoseStamped
+from nav_msgs.msg import Odometry
 import numpy as np
 import time
 import threading
@@ -13,16 +14,17 @@ from tf_transformations import euler_from_quaternion
 from tf_transformations import quaternion_from_euler
 from rclpy.executors import MultiThreadedExecutor
 from std_msgs.msg import Float32MultiArray
-from geometry_msgs.msg import QuaternionStamped, Vector3Stamped
+from geometry_msgs.msg import Quaternion, Vector3
 # from laser_interfaces.msg import LaserPosition
 # 设置字体为 SimHei 以支持中文显示
 # rcParams['font.sans-serif'] = ['SimHei']
+
 # rcParams['axes.unicode_minus'] = False
 #12.47cm
 # 模拟参数
 LASER_data_flag = 1		# 是否有LASER	数据
 # FIELD_SIZE = [15, 8]           # 场地大小
-LASER_ANGLES = [0, np.deg2rad(72), np.deg2rad(144), np.deg2rad(216), np.deg2rad(288)]
+LASER_ANGLES = [np.deg2rad(60), np.deg2rad(132), np.deg2rad(204), np.deg2rad(276), np.deg2rad(348)]
 # self.real.precess_noise_std = [0.1, 0.1, 0.05],
 # self.real.measurement_noise_std=[0.5,0.5,0.1], 
 # self.real.START_POINT = [7.5, 4]       # 初始位置
@@ -52,7 +54,7 @@ class Real(Node):
                 self.initial_angle = self.real.yaw
             
             # 更新角度
-            self.est_yaw = self.real.yaw - self.initial_angle
+            self.est_yaw = (self.real.yaw - self.initial_angle) % (2 * np.pi)
 
             # 测零漂
             if not hasattr(self, "imu_update_time"):
@@ -60,15 +62,16 @@ class Real(Node):
                 self.mean_imu_yaw = 0
                 self.mean_imu_acc_x = 0
                 self.mean_imu_acc_y = 0
-            self.mean_imu_yaw = (self.mean_imu_yaw * self.imu_update_time + self.est_yaw) / (self.imu_update_time + 1)
+            delta_imu_yaw = min(self.est_yaw, 2 * np.pi - self.est_yaw)
+            self.mean_imu_yaw = (self.mean_imu_yaw * self.imu_update_time + delta_imu_yaw) / (self.imu_update_time + 1)
             self.mean_imu_acc_x = (self.mean_imu_acc_x * self.imu_update_time + self.real.acc_x) / (self.imu_update_time + 1)
             self.mean_imu_acc_y = (self.mean_imu_acc_y * self.imu_update_time + self.real.acc_y) / (self.imu_update_time + 1)
             self.imu_update_time += 1
-            if self.imu_update_time % 50 == 0:
-                # 输出到文件和控制台
-                # with open("/home/ares/dog/imu_data.txt", "a") as f:
-                #     f.write(f"Mean: IMU Yaw: {self.mean_imu_yaw:.4f}, Acc X: {self.mean_imu_acc_x:.4f}, Acc Y: {self.mean_imu_acc_y:.4f}, Update Time: {self.imu_update_time}\n")
-                self.real.get_logger().info(f"Mean: IMU Yaw: {self.mean_imu_yaw:.4f}, Acc X: {self.mean_imu_acc_x:.4f}, Acc Y: {self.mean_imu_acc_y:.4f}, Update Time: {self.imu_update_time}")
+            # if self.imu_update_time % 50 == 0:
+            #     # 输出到文件和控制台
+            #     with open("/home/ares/dog/imu_data.txt", "a") as f:
+            #         f.write(f"Mean: IMU Yaw: {self.mean_imu_yaw:.8f}, Acc X: {self.mean_imu_acc_x:.4f}, Acc Y: {self.mean_imu_acc_y:.4f}, Update Time: {self.imu_update_time}\n")
+            #     # self.real.get_logger().info(f"Mean: IMU Yaw: {self.mean_imu_yaw:.4f}, Acc X: {self.mean_imu_acc_x:.4f}, Acc Y: {self.mean_imu_acc_y:.4f}, Update Time: {self.imu_update_time}")
             
             # 确保三角函数输入为标量
             cos_yaw = np.cos(self.est_yaw)
@@ -112,25 +115,35 @@ class Real(Node):
                 # 更新最后时间
                 self.last_time = current_time
 
+            if not hasattr(self, "imu_last_update_time"):
+                self.imu_last_update_time = time.time()
             if self.imu_update_time % 1000 == 0:
-                self.real.get_logger().info(f"IMU: pos({self.est_pos[0]:.4f}, {self.est_pos[1]:.4f}), vel({self.est_vel_x:.4f}, {self.est_vel_y:.4f}), yaw: {self.est_yaw:.4f}, last_time: {self.last_time:.4f}")
+                # self.real.get_logger().info(f"IMU: [{time.time() - self.imu_last_update_time:.4f}] pos({self.est_pos[0]:.4f}, {self.est_pos[1]:.4f}), vel({self.est_vel_x:.4f}, {self.est_vel_y:.4f}), yaw: {self.est_yaw:.4f}, last_time: {self.last_time:.4f}")
+                self.imu_last_update_time = time.time()
 
         def update_laser(self):
             global LASER_data_flag
             laser_data = self.real.real_laser.copy()
 
             # 过滤无效数据 (NaN/inf)
-            # laser_data = np.nan_to_num(laser_data, nan=-1, posinf=self.real.FIELD_SIZE[0], neginf=0.0)
-            laser_data = [7.5 - 0.1247,4.206 - 0.1247,6.805 - 0.1247,6.805 - 0.1247,4.206 - 0.1247]
+            laser_data = np.nan_to_num(laser_data, nan=-1, posinf=self.real.FIELD_SIZE[0], neginf=0.0)
+            # laser_data = [7.5 - 0.1247,4.206 - 0.1247,6.805 - 0.1247,6.805 - 0.1247,4.206 - 0.1247]
             # laser_data = [0.0, 0.0, 0.0, 0.0, 0.0]
             
+            if len(laser_data) != len(LASER_ANGLES):
+                self.real.get_logger().info(f"!!!!!!!!!!!Laser data length mismatch: {len(laser_data)} != {len(LASER_ANGLES)}")
+                LASER_data_flag = 0
+                return None, None
+            else:
+                self.real.get_logger().info(f"!!!!!!!!!!!!Laser data: {laser_data}")
+
             laser_x = []
             laser_y = []
             data = []
             up_width = []
             down_width = []
             flag = [0] * len(LASER_ANGLES)
-            theory_length_map=[0] *len(LASER_ANGLES)
+            theory_length_map= [0] * len(LASER_ANGLES)
             # 计算激光的理论长度
             for i in range(len(LASER_ANGLES)): #计算激光的理论长度
                 data.append(laser_data[i] + self.real.DELTA_DISTANCE) #获取每个激光的数据
@@ -223,7 +236,7 @@ class Real(Node):
             # self.real.get_logger().info(f"Laser: flag: {flag}, data: {data}, up_width: {up_width}, down_width: {down_width}, estimate: ({final_x:.4f}, {final_y:.4f}), angle: {laser_est_yaw:.4f}")
             self.real.get_logger().info(f"Laser: position (x: {final_x:.4f}, y: {final_y:.4f}), laser_est_yaw: {laser_est_yaw:.4f}")
 
-            return [final_x, final_y], self.est_yaw
+            return [final_x, final_y], laser_est_yaw
 
     class KalmanFilter:
 
@@ -323,7 +336,7 @@ class Real(Node):
                 self.estrobot.est_pos = np.array([self.state[0, 0], self.state[2, 0]])
                 self.estrobot.est_yaw = self.state[4, 0] % (np.pi*2) # 提取标量
                 # print('hhhhhhhhhhhhhhh')
-                self.real.get_logger().info(f"self.final_state: {self.final_state}")
+                # self.real.get_logger().info(f"self.final_state: {self.final_state}")
                 self.real.get_logger().info(f"Kalman: pos({self.estrobot.est_pos[0]:.8f}, {self.estrobot.est_pos[1]:.4f}), vel({self.estrobot.est_vel_x:.4f}, {self.estrobot.est_vel_y:.4f}), yaw({self.estrobot.est_yaw:.4f})\n")
 
                 if self.estrobot.est_pos[0] > self.real.FIELD_SIZE[0] or self.estrobot.est_pos[1] > self.real.FIELD_SIZE[1]:
@@ -359,19 +372,28 @@ class Real(Node):
             10)
         
         self.real_laser=[-1] * len(LASER_ANGLES)
-        #接受IMU发送的四元数信息
+
+        # 接受 3D 雷达数据
         self.create_subscription(
-            QuaternionStamped,
-            'imu/quaternion',
-            self.quat_callback,
-            10)
-        #接受IMU发送的加速度信息
-        self.create_subscription(
-            Vector3Stamped,
-            'imu/acceleration',
-            self.accel_callback,
+            Odometry,
+            'Odometry',
+            self.odo_callback,
             10
         )
+
+        # #接受IMU发送的四元数信息
+        # self.create_subscription(
+        #     Quaternion,
+        #     'imu/quaternion',
+        #     self.quat_callback,
+        #     10)
+        # #接受IMU发送的加速度信息
+        # self.create_subscription(
+        #     Vector3,
+        #     'imu/acceleration',
+        #     self.accel_callback,
+        #     10
+        # )
         # hasattr(self,"initial_angle")#判断是否有初始角度
         
 
@@ -427,10 +449,7 @@ class Real(Node):
         self.imu_print_counter = 0
     
     def scan_callback(self, msg):
-        # 获取激光雷达数据并且进行可视化，使用matplotlib
-        # self.get_logger().info('Laser scan received')
-        # 计算距离最近的障碍物距离
-        #开始计时
+
         
         self.real_laser = np.array(msg.data)
         # self.get_logger().info(f"Real laser data: {self.real_laser}\n")
@@ -439,10 +458,10 @@ class Real(Node):
         """四元数转欧拉角处理"""
         # 提取四元数
         quaternion = [
-            msg.quaternion.x,
-            msg.quaternion.y,
-            msg.quaternion.z,
-            msg.quaternion.w
+            msg.x,
+            msg.y,
+            msg.z,
+            msg.w
         ]
         
         # 转换为欧拉角（弧度）
@@ -455,14 +474,14 @@ class Real(Node):
             yaw
         ]
         # 更新偏航角
-        self.yaw = self.euler_angles[2] + 0.003
+        self.yaw = self.euler_angles[0] - 0.00314
 
     def accel_callback(self, msg):
         """加速度数据处理"""
         self.acceleration = [
-            msg.vector.x,
-            msg.vector.y,
-            msg.vector.z
+            msg.x,
+            msg.y,
+            msg.z
         ]
         
         # self.get_logger().info(
@@ -471,12 +490,20 @@ class Real(Node):
         #     f"Z: {self.acceleration[2]:.2f}"
         # )
 
-        self.acc_x = self.acceleration[0] + 0.1313
-        self.acc_y = self.acceleration[1] - 0.0490
+        self.acc_x = self.acceleration[0] - 0.0542
+        self.acc_y = self.acceleration[1] + 0.2541
+        # - 0.0490
 
         # 调用 update_imu 更新
         self.est_robot.update_imu()
 
+    def odo_callback(self, msg):
+        self.odo_position=[
+            msg.pose.pose.position.y,
+            msg.pose.pose.position.x,
+            msg.pose.pose.position.z
+        ]
+        
     # def imu_callback(self, msg):
     #     # 从消息中获取四元数
     #     # time_1 = time.time()
@@ -519,8 +546,8 @@ class Real(Node):
         msg.header.frame_id = 'map'
 
         #机器人坐标及姿态
-        msg.pose.position.x = -float(statement[0]) + self.FIELD_SIZE[0]
-        msg.pose.position.y = -float(statement[1]) + self.FIELD_SIZE[1]
+        msg.pose.position.x = self.odo_position[0]+self.START_POINT[0]
+        msg.pose.position.y = self.odo_position[1]+self.START_POINT[1]
         msg.pose.position.z = 0.00
 
         #将欧拉角转换成四元数

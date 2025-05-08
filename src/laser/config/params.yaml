@@ -1,10 +1,10 @@
 laser_position_node:  # 必须与节点名称完全一致
     ros__parameters:
-        START_POINT: [7.5,4.0] # 初始机器人 禁区角 坐标
-        LASER_ALLOWED_NOISE: 0.3 # 激光传感器判断是否被遮挡的误差 阈值
+        START_POINT: [3.15,2.029] # 初始机器人 禁区角 坐标
+        LASER_ALLOWED_NOISE: 0.5 # 激光传感器判断是否被遮挡的误差 阈值
         process_noise_std: [0.035,0.07,0.05] #IMU传感器测量 标准差 ax ay y_v
         measurement_noise_std: [0.01,0.5,0.1] # 激光传感器测量 标准差 x y angle
-        FIELD_SIZE: [15.0,8.0] # 测试场地 大小
+        FIELD_SIZE: [6.31,4.057] # 测试场地 大小
         FREQUENCY: 0.2 #消息发布的 频率 s^-1
         DELTA_DISTANCE: 0.1247 # m #激光到中心的 距离
         IMU_DISTANCE: 0.0 #IMU到中心的 距离
