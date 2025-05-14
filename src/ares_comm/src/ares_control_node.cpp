@@ -24,11 +24,11 @@ using std::placeholders::_1;
 using geometry_msgs::msg::Twist;
 
 /* ───────────── 常量参数 ───────────── */
-constexpr double kCtrlFreq        = 50.0;           // Hz
+constexpr double kCtrlFreq        = 20.0;           // Hz
 constexpr double kDt              = 1.0 / kCtrlFreq;
 constexpr double kVMax            = 0.5;            // m/s   最高线速度
 constexpr double kAMax            = 0.4;            // m/s²  线加速度限幅
-constexpr double kArriveThresh    = 0.03;           // m     认为到点的距离
+constexpr double kArriveThresh    = 0.1;           // m     认为到点的距离
 constexpr double kWMax            = 0.5;            // rad/s 最大角速度
 constexpr double kP_Yaw           = 1.0;            // 朝向控制比例增益
 
@@ -68,11 +68,19 @@ private:
     void odomCb(const nav_msgs::msg::Odometry::SharedPtr msg)
     {
         std::scoped_lock lk(mtx_);
-        cur_x_ = msg->pose.pose.position.x;
-        cur_y_ = msg->pose.pose.position.y;
+        bias_x = 0.06;
+        bias_y = -0.42;
+        length = 0.42
+        cur_x_ = -msg->pose.pose.position.x ;
+        cur_y_ = -msg->pose.pose.position.y ;
         // 提取当前朝向
         cur_yaw_ = quaternionToYaw(msg->pose.pose.orientation);
+
+        // length = ;
+        cur_x = cur_x - length*math.sin(cur_yaw);
+        cur_y = cur_y - length*math.cos(cur_yaw);
         odom_ok_ = true;
+        RCLCPP_INFO(this->get_logger(), "Odometry + bias_y: x=%.2f, y=%.2f, yaw=%.2f", cur_x_, cur_y_, cur_yaw_);
     }
 
     void goalCb(const geometry_msgs::msg::PoseStamped::SharedPtr msg)
@@ -84,6 +92,7 @@ private:
         goal_yaw_ = quaternionToYaw(msg->pose.orientation);
         goal_has_orientation_ = true;  // 标记是否提供了朝向信息
         goal_ok_ = true;
+        RCLCPP_INFO(this->get_logger(), "Goal received: x=%.2f, y=%.2f, yaw=%.2f", goal_x_, goal_y_, goal_yaw_);
     }
 
     /* ───── 主循环 ───── */
@@ -104,7 +113,11 @@ private:
         double dx = gx - x;
         double dy = gy - y;
         double dist = std::hypot(dx, dy);
-
+        
+        RCLCPP_INFO(this->get_logger(), "X Distance to goal: %.2f", dx);
+        
+        RCLCPP_INFO(this->get_logger(), "Y Distance to goal: %.2f", dy);
+        // RCLCPP_INFO(this->get_logger(), "Distance to goal: %.2f", dist);
         /* 2. 到点直接停 */
         if (dist < kArriveThresh) {
             prev_v_ = 0.0;
@@ -168,31 +181,9 @@ private:
         wz = std::clamp(wz, -kWMax, kWMax);
 
         /* 发送速度命令 */
-        // sendVelocity(vx, vy, wz);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        sendVelocity(0.1,0,0);
+        sendVelocity(vx, vy, wz);
+        RCLCPP_INFO(this->get_logger(), "Sending velocity command: vx=%.2f, vy=%.2f, wz=%.2f", vx, vy, wz);
+        // sendVelocity(0.1,0,0);
     }
 
     /* ───── 发送速度命令 ───── */

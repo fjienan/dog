@@ -4,6 +4,7 @@ from rclpy.node import Node
 from geometry_msgs.msg import Twist
 import time
 
+
 class FixedCmdVelPublisher(Node):
     def __init__(self):
         super().__init__('fixed_cmd_vel_publisher_py')
@@ -18,7 +19,7 @@ class FixedCmdVelPublisher(Node):
         # 初始化计数器
         self.info_cnt = 0
         
-        self.get_logger().info('Fixed Cmd Vel Publisher node (Python) started.')
+        self.get_logger().info('Fixed Cmd Vel Publisher n`ode (Python) started.')
         self.get_logger().info('Publishing fixed velocity: linear.x = 0.1 m/s')
     
     def timer_callback(self):

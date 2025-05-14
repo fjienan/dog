@@ -41,6 +41,7 @@ class Real(Node):
             #Import the data from the 3D laser
             self.est_yaw = self.real.yaw
             self.est_pos = self.real.odo_position
+            self.real.get_logger().info(f"Laser: position (x: {self.est_pos[0]:.4f}, y: {self.est_pos[1]:.4f}), yaw: {self.est_yaw:.4f}")
 
             global LASER_data_flag
             # Get the laser data
@@ -48,7 +49,7 @@ class Real(Node):
 
             # 过滤无效数据 (NaN/inf)
             laser_data = np.nan_to_num(laser_data, nan=-1, posinf=self.real.FIELD_SIZE[0], neginf=0.0)
-            # laser_data = [7.5 - 0.1247,4.206 - 0.1247,6.805 - 0.1247,6.805 - 0.1247,4.206 - 0.1247]
+            laser_data = [7.5 - 0.1247,4.206 - 0.1247,6.805 - 0.1247,6.805 - 0.1247,4.206 - 0.1247]
             # laser_data = [0.0, 0.0, 0.0, 0.0, 0.0]
             
             #Check whether the laser data is valid
@@ -57,7 +58,8 @@ class Real(Node):
                 LASER_data_flag = 0
                 return None, None
             else:
-                self.real.get_logger().info(f"!!!!!!!!!!!!Laser data: {laser_data}")
+                self.real.get_logger().info(f"!! Having !! Laser data: {laser_data}")
+                LASER_data_flag = 1
 
             laser_x = []
             laser_y = []
@@ -141,10 +143,12 @@ class Real(Node):
             LASER_data_flag = 1
 
             if len(laser_x) == 0:
-                laser_x.append(self.est_pos[0])
+                # laser_x.append(self.est_pos[0])
+                self.real.get_logger().info(f"Laser: No valid data, using estimate position_x")
                 LASER_data_flag = 0
             if len(laser_y) == 0:
-                laser_y.append(self.est_pos[1])
+                # laser_y.append(self.est_pos[1])
+                self.real.get_logger().info(f"Laser: No valid data, using estimate position_y")
                 LASER_data_flag = 0
 
             final_x = np.mean(laser_x)
@@ -156,7 +160,7 @@ class Real(Node):
             #     LASER_data_flag = 1
             
             # self.real.get_logger().info(f"Laser: flag: {flag}, data: {data}, up_width: {up_width}, down_width: {down_width}, estimate: ({final_x:.4f}, {final_y:.4f}), angle: {laser_est_yaw:.4f}")
-            self.real.get_logger().info(f"Laser: position (x: {final_x:.4f}, y: {final_y:.4f}), laser_est_yaw: {laser_est_yaw:.4f}")
+            self.real.get_logger().info(f"Laser: position after solving the equation(x: {final_x:.4f}, y: {final_y:.4f}), laser_est_yaw: {laser_est_yaw:.4f}")
 
             return [final_x, final_y], laser_est_yaw
 
@@ -178,18 +182,20 @@ class Real(Node):
 
             if LASER_data_flag == 1:
                 # clean the flag
-                LASER_data_flag = 0
                 
                 # Calculate the average position and angle
                 for i in range (len(laser_position)):
                     weight_laser = self.real.three_D_noise_std[i] / (self.real.three_D_noise_std[i] + self.real.measurement_noise_std[i])
                     weight_3D_laser = self.real.measurement_noise_std[i] / (self.real.three_D_noise_std[i] + self.real.measurement_noise_std[i])
-                    self.final_state[i] =laser_state[i] * weight_laser + three_D_state[i] * weight_3D_laser                   
+                    self.final_state[i] =laser_state[i] * weight_laser + three_D_state[i] * weight_3D_laser 
+                self.real.get_logger().info(f"Using laser data: {self.final_state}")
+                LASER_data_flag = 0        
                 return self.final_state
 
             else:#如果没有LASER数据，使用3D laser的数据进行遗传
                 # clean the flag
-                self.final_state = self.real.odo_position
+                self.final_state = [self.real.odo_position[0],self.real.odo_position[1], self.real.yaw]
+                self.real.get_logger().info(f"Laser: No laser data, using 3D laser data: {self.final_state}")
                 return self.final_state
 
     def __init__(self):
@@ -227,7 +233,7 @@ class Real(Node):
         # hasattr(self,"initial_angle")#判断是否有初始角度
         
 
-        self.publisher_=self.create_publisher(PoseStamped,'/ally/robot1/laser_position_node',10)#发布激光位置数据，发布到/ally/robot1/laser_position，队列长度为10，发布的数据类型为LaserPosition，LaserPosition是自定义的数据类型
+        self.publisher_=self.create_publisher(PoseStamped,'/laser_position',10)#发布激光位置数据，发布到/ally/robot1/laser_position，队列长度为10，发布的数据类型为LaserPosition，LaserPosition是自定义的数据类型
 
         self.declare_parameters(
             namespace='',
@@ -271,7 +277,7 @@ class Real(Node):
         self.est_robot = self.EstRobot(self)
         # the frequency of the timer to deliver the data    
         self.timer=self.create_timer(self.FREQUENCY,self.timer_callback)
-    
+        
     def scan_callback(self, msg):
 
         
@@ -282,8 +288,7 @@ class Real(Node):
     def odo_callback(self, msg):
         self.odo_position=[
             msg.pose.pose.position.y + self.START_POINT[0],
-            msg.pose.pose.position.x + self.START_POINT[1],
-            msg.pose.pose.position.z
+            msg.pose.pose.position.x + self.START_POINT[1]
         ]
         self.odo_quaternion=[
             msg.pose.pose.orientation.x,
@@ -297,8 +302,8 @@ class Real(Node):
     def timer_callback(self):
         
         # 确保 statement 有效
-        if statement is None:
-            statement = [self.est_robot.final_state[0], self.est_robot.final_state[1], self.est_robot.final_state[2]]
+        
+        statement = self.EstRobot.update(self.est_robot)
         # 发布消息
         msg = PoseStamped()
         msg.header.stamp = self.get_clock().now().to_msg()
@@ -326,16 +331,17 @@ class Real(Node):
         # self.get_logger().info(f"Published: {msg.x}, {msg.y}, {msg.angle}")
 
 def main(args=None):
+
     # args = remove_ros_args(args)
     rclpy.init(args=args)
     real_node = Real()
-    # est_robot = EstRobot(real_node)
-    # kalman_filter = KalmanFilter(est_robot,real_node)
-    # laser_position = Laserposition(kalman_filter,real_node)
-    # # # 独立ROS线程
-    # # ros_spin_thread = threading.Thread(target=rclpy.spin, args=(real_node,))
-    # # ros_spin_thread.daemon = True
-    # # ros_spin_thread.start()
+    # est_robot = Real.EstRobot(real_node)
+    # # kalman_filter = KalmanFilter(est_robot,real_node)
+    # laser_position = Real.Laserposition(est_robot,real_node)
+    # # 独立ROS线程
+    # ros_spin_thread = threading.Thread(target=rclpy.spin, args=(real_node,))
+    # ros_spin_thread.daemon = True
+    # ros_spin_thread.start()
     executor = MultiThreadedExecutor(num_threads=4)
     # executor.add_node(laser_position)
     executor.add_node(real_node)

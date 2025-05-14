@@ -43,12 +43,12 @@ def generate_launch_description():
     )    
     ld.add_action(myRreal_node)
 
-    IMU_node = Node(
-        package='usb_bulk_node',
-        executable='usb_bulk_node',
-        name='IMU_sensor'
-        # output='screen'
-    )
-    ld.add_action(IMU_node)
+    # IMU_node = Node(
+    #     package='usb_bulk_node',
+    #     executable='usb_bulk_node',
+    #     name='IMU_sensor'
+    #     # output='screen'
+    # )
+    # ld.add_action(IMU_node)
 
     return ld
