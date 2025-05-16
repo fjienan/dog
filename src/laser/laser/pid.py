@@ -5,7 +5,14 @@ from geometry_msgs.msg import PoseStamped, Twist
 from nav_msgs.msg import Odometry
 import math
 import tf_transformations
+import numpy as np
+from transformation import Transformation
 
+"""
+import reasonable values for the transformation
+see the explaination in the transforamtion.py
+"""
+tranformation = Transformation(angle = 2*np.pi/3 ,turn_over = True ,dimension = 2)
 class OmnidirectionalController(Node):
     def __init__(self):
         super().__init__('omnidirectional_controller')
