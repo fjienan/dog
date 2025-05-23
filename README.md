@@ -54,7 +54,11 @@ twist:
     z: 2.0"
 
 ```
+
 没写luanch文件前启动节点及其相应参数文件
+
 ``` terminal
 ros2 run omni_mpc_controller MPC --ros-args --params-file $(ros2 pkg prefix omni_mpc_controller)/share/omni_mpc_controller/config/params.yaml
 ```
+
+输出报错是正常的，因为没有收到雷达数据，所以对应的接收到一个空数组，因此报错，至于有没有其他问题尚不得而知，目前确定的是参数可以正常导入到文件当中
