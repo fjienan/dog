@@ -54,3 +54,7 @@ twist:
     z: 2.0"
 
 ```
+没写luanch文件前启动节点及其相应参数文件
+``` terminal
+ros2 run omni_mpc_controller MPC --ros-args --params-file $(ros2 pkg prefix omni_mpc_controller)/share/omni_mpc_controller/config/params.yaml
+```
