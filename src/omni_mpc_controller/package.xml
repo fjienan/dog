@@ -1,0 +1,38 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>omni_mpc_controller</name>
+  <version>0.0.0</version>
+  <description>Omnidirectional MPC Controller for two robots</description>
+
+  <maintainer email="dell@todo.todo">dell</maintainer>
+  <license>Apache License 2.0</license>
+
+  <!-- 构建工具依赖 -->
+  <buildtool_depend>ament_python</buildtool_depend> <!-- 改为ament_python，非ament_cmake -->
+
+  <!-- 运行时依赖 -->
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend> <!-- 添加缺失的依赖 -->
+  <exec_depend>nav_msgs</exec_depend>
+  <exec_depend>visualization_msgs</exec_depend>
+  <exec_depend>tf_transformations</exec_depend> <!-- 添加坐标变换库 -->
+
+  <!-- 构建依赖 -->
+  <build_depend>rclpy</build_depend>
+  <build_depend>geometry_msgs</build_depend>
+  <build_depend>sensor_msgs</build_depend>
+  <build_depend>nav_msgs</build_depend>
+  <build_depend>visualization_msgs</build_depend>
+  <build_depend>tf_transformations</build_depend>
+
+  <!-- 测试依赖 -->
+  <test_depend>ament_copyright</test_depend>
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>ament_pep257</test_depend>
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>
