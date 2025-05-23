@@ -15,8 +15,11 @@
   <exec_depend>geometry_msgs</exec_depend>
   <exec_depend>sensor_msgs</exec_depend> <!-- 添加缺失的依赖 -->
   <exec_depend>nav_msgs</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>numpy</exec_depend>
   <exec_depend>visualization_msgs</exec_depend>
   <exec_depend>tf_transformations</exec_depend> <!-- 添加坐标变换库 -->
+  <exec_depend>python3-yaml</exec_depend>
 
   <!-- 构建依赖 -->
   <build_depend>rclpy</build_depend>

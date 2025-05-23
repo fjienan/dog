@@ -1,0 +1,44 @@
+car_controller:
+  ros__parameters:
+    # 控制周期，单位：秒
+    dt: 0.10
+    # 最大速度限制，单位：米/秒
+    max_speed: 5.0
+    # 最大加速度限制，单位：米/秒²
+    max_accel: 3.0
+    # 目标点跟踪权重，值越大越倾向于跟踪目标点
+    weight_goal: 10.0
+    # 速度平滑权重，值越大速度变化越平滑
+    weight_velocity: 5.0
+    # 加速度平滑权重，值越大加速度变化越平滑
+    weight_accel: 0.1
+    # 障碍物避障权重，值越大越倾向于远离障碍物
+    weight_obstacle: 80.0
+    # 边界避障权重，值越大越倾向于远离边界
+    weight_boundary: 50.0
+    # 车辆半径，用于碰撞检测，单位：米
+    car_radius: 0.5
+    obstacle_visual_radius: 0.3
+    # 边界安全距离，单位：米
+    boundary_safe_distance: 1.0
+    # 避障安全裕度，单位：米
+    avoidance_margin: 0.2
+    # 警告区域距离，单位：米
+    warning_zone_distance: 1.0
+    # 世界大小 [长, 宽]，单位：米
+    world_size: [15.00,8.00]
+    # 混合安全距离，单位：米
+    blend_safe_dist: 0.5
+    # 手动控制切换距离，单位：米
+    manual_override_dist: 10.0
+    # 最大预期障碍物速度，单位：米/秒
+    max_expected_obstacle_speed: 1.0
+    # DBSCAN聚类算法的邻域半径
+    dbscan_eps: 0.5
+    # DBSCAN聚类算法的最小样本数
+    dbscan_min_samples: 3
+    # 历史轨迹最大长度
+    max_history_length: 10.0
+    # 预测时域长度，用于轨迹规划
+    prediction_horizon: 5.0
+    

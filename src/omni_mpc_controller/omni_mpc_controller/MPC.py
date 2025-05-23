@@ -1,14 +1,13 @@
 
 import math
-import random
-from geometry_msgs.msg import PoseStamped 
+from geometry_msgs.msg import PoseStamped,Twist
+from sensor_msgs.msg import LaserScan
 import rclpy
 from rclpy.node import Node
 import numpy as np
 from sklearn.cluster import DBSCAN
 from scipy.optimize import linear_sum_assignment
 from scipy.optimize import minimize
-import time
 
 # 设置字体 (确保系统中有对应的字体，支持英文字符)
 # Set font (ensure corresponding font is in the system, supports English ]characters)
@@ -37,140 +36,90 @@ class CarController(Node):
             '/scan',
             self.scan_callback,
             10)#10是队列大小
-        self.subscription_position = self.get_subscriptions(
+        self.subscription_position = self.create_subscription(
             PoseStamped,
             '/laser_position',
             self.position_callback,
             10
         )
- # 防止未使用的变量警告
-    
-        # # 小车运动参数
-        # # Car movement parameters
-        # self.x = 0.0
-        # self.y = 0.0
-        # # 车辆朝向角 (全向车位置更新不需要，但雷达扫描点的位置依赖于它)
-        # # Vehicle orientation angle (not needed for omni-directional position update, but radar scan points depend on it)
-        # self.theta = 0.0
-        # 速度标量
-        # Velocity scalar
-        self.velocity = 0.0
-        # 全向车的速度可以表示为 (vx, vy)
-        # Omnidirectional car velocity can be represented as (vx, vy)
+        self.declare_parameters(
+            namespace='',
+            parameters=[
+                ('dt', 0.00),
+                ('max_speed', 0.0),
+                ('max_accel', 0.0),
+                ('weight_goal', 00.0),
+                ('weight_velocity', 0.0),
+                ('weight_accel', 0.0),
+                ('weight_obstacle', 0.0),
+                ('weight_boundary', 0.0),
+                ('car_radius', 0.0),
+                ('obstacle_visual_radius', 0.0),
+                ('boundary_safe_distance', 0.0),
+                ('avoidance_margin', 0.0),
+                ('warning_zone_distance', 0.0),
+                ('prediction_horizon', 0.0),
+                ('world_size', [0.00,0.00]),
+                ('dbscan_eps', 0.0),
+                ('dbscan_min_samples', 0),
+                ('max_history_length', 0.0),
+                ('max_expected_obstacle_speed', 0.0)
+            ]
+        )
+        
         self.vx = 0.0
         self.vy = 0.0
-        # 最大速度
-        # Maximum speed
-        self.max_speed = 5.0
-        # 基础加速度 (用于手动控制，作为期望加速度的参考) - Note: MPC uses max_accel
-        # Base acceleration (for manual control, as reference for desired acceleration) - Note: MPC uses max_accel
-        self.acceleration = 3.0 # This parameter is not currently used by the MPC logic, which commands acceleration directly
+        self.dt = self.get_parameter('dt').get_parameter_value().double_value
+        self.max_speed = self.get_parameter('max_speed').get_parameter_value().double_value
+        self.acceleration = self.get_parameter('max_accel').get_parameter_value().double_value # This parameter is not currently used by the MPC logic, which commands acceleration directly
         self.trajectory = []
-
-        # *** 添加阻力参数 ***
-        # *** Add Resistance Parameters ***
-        # 阻力系数，值越大阻力越大 (与速度成正比，单位: s^-1)
-        # Resistance coefficient, higher value means more resistance (proportional to velocity, unit: s^-1)
-        self.resistance_coeff = 0.8
-
-        # MPC参数
-        # MPC parameters
-        # MPC 采样时间 (Note: This is different from actual frame dt)
-        # MPC sampling time (Note: This is different from actual frame dt)
-        self.dt = 0.10 # MPC planning step time
-        # 预测步数
-        # Prediction horizon
-        self.prediction_horizon = 5
-        # 最大加速度 (m/s^2) - This is the maximum *control* acceleration MPC can command
-        # Maximum acceleration (m/s^2) - This is the maximum *control* acceleration MPC can command
-        self.max_accel = 3.0
-        # 目标点权重
-        # Goal point weight
-        self.weight_goal = 10.0
-        # 速度匹配权重（可选，让车倾向于达到一定速度，与手动方向相关）
-        # Velocity matching weight (optional, makes the car tend towards a certain speed related to manual direction)
-        self.weight_velocity = 5.0 # Weight for velocity tracking in manual mode
-        # 加速度（控制量）权重
-        # Acceleration (control input) weight
-        # Keep weight_accel relatively low compared to velocity or goal weights
-        # A very low weight_accel can improve responsiveness but may lead to shaky control
-        # 0.1 is a reasonable starting point.
-        self.weight_accel = 0.1
-        # 障碍物权重
-        # Obstacle weight
-        self.weight_obstacle = 80.0
-        # 边界权重
-        # Boundary weight
-        self.weight_boundary = 50.0
-        # 车辆半径 (用于碰撞和避障)
-        # Vehicle radius (for collision and avoidance)
-        self.car_radius = 0.5
-
-        # 调整的安全距离参数
-        # Adjustable safety distance parameters
-        # 障碍物可视化/模型半径 (用于碰撞和避障)
-        # Obstacle visualization/model radius (for collision and avoidance)
-        self.obstacle_visual_radius = 0.3
-        # 边界安全距离
-        # Boundary safety distance
-        self.boundary_safe_distance = 1
-        # MPC obstacle avoidance extra margin
-        self.avoidance_margin = 0.2
-        # Distance beyond safety_zone to start warning penalty
-        self.warning_zone_distance = 1.0
-
-        # 世界大小，正方形边长的一半
-        # World size, half of the square side length
-        self.world_size = 10
-
-        # 避障/手动控制混合参数
-        # Obstacle avoidance / Manual control blending parameters
-        # 障安全区 + MPC裕量 (当障碍物距离 <= 此距离时，完全优先避障)
-        # Obstacle safety zone + MPC margin (when obstacle distance <= this distance, full priority to avoidance)
+        self.prediction_horizon = self.get_parameter('prediction_horizon').get_parameter_value().double_value
+        self.max_accel = self.get_parameter('max_accel').get_parameter_value().double_value
+        self.weight_goal = self.get_parameter('weight_goal').get_parameter_value().double_value        # Velocity matching weight (optional, makes the car tend towards a certain speed related to manual direction)
+        self.weight_velocity = self.get_parameter('weight_velocity').get_parameter_value().double_value # Weight for velocity tracking in manual mode
+        self.weight_accel = self.get_parameter('weight_accel').get_parameter_value().double_value
+        self.weight_obstacle = self.get_parameter('weight_obstacle').get_parameter_value().double_value
+        self.weight_boundary = self.get_parameter('weight_boundary').get_parameter_value().double_value
+        self.car_radius = self.get_parameter('car_radius').get_parameter_value().double_value
+        self.obstacle_visual_radius = self.get_parameter('obstacle_visual_radius').get_parameter_value().double_value
+        self.boundary_safe_distance = self.get_parameter('boundary_safe_distance').get_parameter_value().double_value
+        self.avoidance_margin = self.get_parameter('avoidance_margin').get_parameter_value().double_value
+        self.warning_zone_distance = self.get_parameter('warning_zone_distance').get_parameter_value().double_value
+        self.world_size = self.get_parameter('world_size').get_parameter_value().double_array_value
         self.blend_safe_dist = self.car_radius + self.obstacle_visual_radius + self.avoidance_margin
-        # 离障碍物远于此距离时，完全优先目标/手动控制
-        # When farther than this distance from an obstacle, full priority to goal/manual control
         self.manual_override_dist = self.blend_safe_dist + 3.0 # Increased blend range slightly
-        # 当前帧的混合比例 (1: 纯避障, 0: 纯目标/手动)
-        # Current frame's blend ratio (1: pure avoidance, 0: pure goal/manual)
         self.blend_alpha = 0.0
-
-        # 雷达参数 (角度-距离传感器)
-        # Radar parameters (Angle-Distance sensor)
-        # 雷达最大探测距离
-        # Radar maximum detection distance
-        self.radar_max_distance = 15.0
-        # 雷达角度分辨率 (度)
-        # Radar angle resolution (degrees)
-        self.radar_angle_res = 1 # Slightly coarser resolution for speed
-        # 雷达距离测量噪声标准差
-        # Radar distance measurement noise standard deviation
-        self.radar_noise_std = 0.1
-        # 存储 (angle_deg, distance) 列表
-        # Store (angle_deg, distance) list
-        self.raw_scan_data = []
-
-        # 障碍物跟踪和预测参数
-        # Obstacle tracking and prediction parameters
-        # 存储 {id: int, center: (x, y), age: int} - Currently tracked
-        # Stores {id: int, center: (x, y), age: int} - Currently tracked
+        self.laser = []
         self.obstacle_clusters = []
-        # 存储 id: [pos1, pos2, ...]
-        # Stores id: [pos1, pos2, ...]
         self.obstacle_history = {}
-        # Store last 10 positions for velocity estimate
-        self.max_history_length = 10
-        # Used for tracking association threshold
-        self.max_expected_obstacle_speed = 1.0
+        self.max_history_length = self.get_parameter('max_history_length').get_parameter_value().double_value
+        self.dbscan_eps = self.get_parameter('dbscan_eps').get_parameter_value().double_value
+        self.dbscan_min_samples = self.get_parameter('dbscan_min_samples').get_parameter_value().integer_value
+        self.max_expected_obstacle_speed = self.get_parameter('max_expected_obstacle_speed').get_parameter_value().double_value
+        self.x_initial = 0.0
+        self.y_initial = 0.0
+        self.get_logger().info(f"""dt: {self.dt}
+        max_speed: {self.max_speed}
+        max_accel: {self.max_accel}
+        weight_goal: {self.weight_goal}
+        weight_velocity: {self.weight_velocity}
+        weight_accel: {self.weight_accel}
+        weight_obstacle: {self.weight_obstacle}
+        weight_boundary: {self.weight_boundary}
+        car_radius: {self.car_radius}
+        obstacle_visual_radius: {self.obstacle_visual_radius}
+        boundary_safe_distance: {self.boundary_safe_distance}
+        avoidance_margin: {self.avoidance_margin}
+        warning_zone_distance: {self.warning_zone_distance}
+        world_size: {self.world_size}
+        dbscan_eps: {self.dbscan_eps}
+        dbscan_min_samples: {self.dbscan_min_samples}
+        max_history_length: {self.max_history_length}
+        max_expected_obstacle_speed: {self.max_expected_obstacle_speed}
+        """)
 
-        # DBSCAN 参数
-        # DBSCAN parameters
-        # Max distance for neighbors
-        self.dbscan_eps = 0.5
-        # Min points in a cluster
-        self.dbscan_min_samples = 3
-        # 定时器，每0.1秒执行一次，执行time_callback函数
-        self.timer = self.create_timer(0.1, self.time_callback)
+        # 定时器，每dt秒执行一次，执行time_callback函数
+        self.timer = self.create_timer(self.dt, self.time_callback)
 
         """发布决策信息,其中的消息类型需要根据需求进行修改"""
         self.publisher_ = self.create_publisher(
@@ -183,7 +132,7 @@ class CarController(Node):
         # 获取激光雷达数据并且进行可视化，使用matplotlib
         # self.get_logger().info('Laser scan received')
         # 计算距离最近的障碍物距离
-        laser = np.array(msg.ranges)  
+        self.laser = msg.ranges  
     def position_callback(self, msg):
         self.x = msg.pose.position.x
         self.y = msg.pose.position.y
@@ -197,9 +146,10 @@ class CarController(Node):
         angle_rad_relative = math.radians(angle_deg_relative)
 
         angle_rad_world = car_theta_rad + angle_rad_relative
-
+        
+        #激光编号顺序为逆时针旋转
         world_x = car_x + distance * math.cos(angle_rad_world)
-        world_y = car_y + distance * math.sin(angle_rad_world)
+        world_y = car_y - distance * math.sin(angle_rad_world)
         return (world_x, world_y)
 
 
@@ -214,8 +164,8 @@ class CarController(Node):
         # # Convert raw scan data (angle, distance) to world coordinates (x, y)
         # # 将原始雷达数据（角度，距离）转换为世界坐标（x，y）点
         world_scan_points = [
-            self.convert_polar_to_cartesian(angle, dist, self.x, self.y, self.theta)
-            for angle, dist in self.raw_scan_data
+            self.convert_polar_to_cartesian(i, self.laser[i], self.x, self.y, self.theta)
+            for i in range(len(self.laser))
         ]
         # # Store points for plotting
         self.scan_points_for_plot = np.array(world_scan_points)
@@ -226,7 +176,7 @@ class CarController(Node):
 
         # Perform DBSCAN clustering on the world coordinates
         # DBSCAN类的实例，导入所需的参数如 eps（聚类半径）0.5 和 min_samples（最小样本数）为 3
-        dbscan = DBSCAN(eps=self.dbscan_eps, min_samples=self.dbscan_min_samples)
+        dbscan = DBSCAN(eps=self.dbscan_eps, min_samples = self.dbscan_min_samples)
         # fit_predict 输出每个点所属的簇的标签
         clusters = dbscan.fit_predict(self.scan_points_for_plot)
         # 将每个点所属的簇的标签作为键，将该点作为值，存储在字典中 c
@@ -466,7 +416,6 @@ class CarController(Node):
             if obstacle_cost_weight_scaled > 1e-9 and predicted_obstacle_paths:
                 # Define safe and warning distances for obstacles
                 safe_distance = self.car_radius + self.obstacle_visual_radius + self.avoidance_margin
-                warning_zone_dist_start = safe_distance # Warning starts right outside the safe zone
                 warning_zone_dist_end = safe_distance + self.warning_zone_distance # Warning ends at this distance
 
 
@@ -624,77 +573,13 @@ class CarController(Node):
             # Clear the MPC trajectory visualization as the planned path is not valid
             self.mpc_trajectory = []
             return np.zeros(self.prediction_horizon * 2) # Return zero control for all steps
-
-
-    def update_movement(self, dt):
-        """使用MPC求解得到的控制量更新车辆状态。"""
-        # Updates vehicle state using the control command obtained from the MPC solver.
-        # dt: actual time passed since the last frame (variable)
-
-        # Get the current state of the vehicle
-        current_state = np.array([self.x, self.y, self.vx, self.vy])
-
-        # Predict the paths of obstacles over the MPC horizon based on current tracking data
-        predicted_obstacle_paths = self.predict_obstacle_positions()
-
-        # Solve the MPC problem to get the optimal control sequence for the current state and predicted obstacles
-        # solve_mpc also updates self.mpc_trajectory internally
-        u_flat = self.solve_mpc(current_state, self.goal, predicted_obstacle_paths)
-
-        # Extract the *first* control command [ax0, ay0] from the optimized sequence
-        # This is the commanded acceleration to apply for the duration of the actual frame dt.
-        commanded_ax = 0.0
-        commanded_ay = 0.0
-
-        if u_flat is not None and len(u_flat) >= 2:
-            commanded_ax = u_flat[0]
-            commanded_ay = u_flat[1]
-        # If u_flat is None or too short (e.g., solve_mpc failed and returned zeros), commanded_ax/ay remain 0.0
-
-        # Calculate the resistance acceleration based on the *current* velocity
-        resistance_ax = -self.resistance_coeff * self.vx
-        resistance_ay = -self.resistance_coeff * self.vy
-
-        # Calculate the net acceleration applied to the vehicle in this frame
-        # This is the sum of the commanded acceleration from MPC and the resistance acceleration
-        net_ax = commanded_ax + resistance_ax
-        net_ay = commanded_ay + resistance_ay
-
-        # Update velocity based on the net acceleration and the actual frame time step dt
-        self.vx += net_ax * dt
-        self.vy += net_ay * dt
-
-        # Apply the speed limit *after* updating the velocity
-        current_speed = math.hypot(self.vx, self.vy)
-        if current_speed > self.max_speed:
-            # Scale the velocity vector back down to the maximum speed magnitude
-            if current_speed > 1e-12: # Avoid division by near zero
-                scale = self.max_speed / current_speed
-                self.vx *= scale
-                self.vy *= scale
-            else: # Speed is zero or near zero, set to zero explicitly to prevent NaNs
-                self.vx = 0.0
-                self.vy = 0.0
-
-        # Update the scalar velocity display variable
-        self.velocity = math.hypot(self.vx, self.vy)
-
-        # Update position based on the new velocity and the actual frame time step dt
-        self.x += self.vx * dt
-        self.y += self.vy * dt
-
-        # Add the current position to the trajectory history for visualization
-        self.trajectory.append((self.x, self.y))
-        # Limit the length of the trajectory displayed
-        max_trajectory_length = 500
-        if len(self.trajectory) > max_trajectory_length:
-            self.trajectory.pop(0) # Remove the oldest position
-
-
     def time_callback(self):
         self.obstacle_centers = self.cluster_scan_points()
         self.track_obstacles(self.obstacle_centers, self.dt)
-        
+        self.vx = (self.x - self.x_initial) / self.dt
+        self.vy = (self.y - self.y_initial) / self.dt
+        self.x_initial = self.x
+        self.y_initial = self.y
         # Calculate the distance from the car to the nearest currently *tracked* obstacle
         car_pos_np = np.array([self.x, self.y])
         d_min = float('inf') # Initialize min distance to infinity
@@ -705,9 +590,18 @@ class CarController(Node):
             if distances: # Check if the list of distances is not empty
                 d_min = min(distances) 
         self.blend_alpha = self.calculate_blend_ratio(d_min)
-        predicted_obstacle_paths = self.predict_obstacle_positions()        u_flat = self.solve_mpc(current_state, self.goal, predicted_obstacle_paths)
+        predicted_obstacle_paths = self.predict_obstacle_positions() 
+        current_state = np.array([self.x, self.y, self.vx, self.vy])      
+        u_flat = self.solve_mpc(current_state, self.goal, predicted_obstacle_paths)
 
-        self.update_movement(self.dt)
+        #发送数据到决策节点，其中消息类型需要根据需求进行修改
+        msg = Twist()
+        commanded_vx = u_flat[0] * self.dt
+        commanded_vy = u_flat[1] * self.dt
+        msg.linear.x = commanded_vx
+        msg.linear.y = commanded_vy
+        msg.angular.z = 0.0
+        self.publisher_.publish(msg)
 
 def main(args=None):
     rclpy.init(args=args)
@@ -715,6 +609,9 @@ def main(args=None):
     rclpy.spin(controller)
     controller.destroy_node()
     rclpy.shutdown()
+    
+if __name__ == '__main__':
+    main()
 
 
 
