@@ -111,7 +111,7 @@ class CarController:
         self.blend_safe_dist = self.car_radius + self.obstacle_visual_radius + self.avoidance_margin
         # 离障碍物远于此距离时，完全优先目标/手动控制
         # When farther than this distance from an obstacle, full priority to goal/manual control
-        self.manual_override_dist = self.blend_safe_dist + 3.0 # Increased blend range slightly
+        self.manual_override_dist = self.blend_safe_dist + 1.0 # Increased blend range slightly
         # 当前帧的混合比例 (1: 纯避障, 0: 纯目标/手动)
         # Current frame's blend ratio (1: pure avoidance, 0: pure goal/manual)
         self.blend_alpha = 0.0
@@ -175,7 +175,7 @@ class CarController:
         # 图形对象
         # Graphics objects
         self.car_circle = self.ax.add_patch(plt.Circle((self.x, self.y), self.car_radius, color='red', zorder=5))
-        self.trajectory_line, = self.ax.plot([], [], 'b-', lw=1, alpha=0.7)
+        self.trajectory_line, = self.ax.plot([], [], 'b-', lw=2, alpha=0.7)
         self.info_text = self.ax.text(0.05, 0.95, '', transform=self.ax.transAxes, va='top', fontsize=10)
         self.scan_scatter = self.ax.scatter(np.empty(0), np.empty(0), c='lime', s=5, marker='.', alpha=0.5)
         self.border_rect = plt.Rectangle((-self.world_size, -self.world_size), 2 * self.world_size, 2 * self.world_size, linewidth=1,
@@ -273,24 +273,29 @@ class CarController:
 
     def on_mouse_click(self, event):
         """鼠标点击事件，设置目标点"""
-        # Mouse click event, sets the goal point
         if event.inaxes == self.ax:
             self.goal = (event.xdata, event.ydata)
             # 更新目标点标记
-            # Update goal point marker
             self.goal_marker.set_data(self.goal[0], self.goal[1])
-            print(f"Goal set to: {self.goal}")
-            # 当设置新目标时，清除手动控制方向并停止车辆以便MPC接管
-            # When setting a new goal, clear manual control direction and stop the vehicle for MPC takeover
-            # Clear manual control input keys
+            print(f"目标点设置为: {self.goal}")
+            
+            # 清除手动控制方向
             if hasattr(self, '_pressed_keys'):
                 self._pressed_keys = set()
             self.control_vector = np.array([0.0, 0.0])
-            # Stop vehicle to clearly show MPC starting from rest towards new goal
-            # Commenting out stopping on goal click to allow smooth transition
-            # self.vx = 0.0
-            # self.vy = 0.0
-            # self.velocity = 0.0
+            
+            # 计算到目标点的距离
+            current_pos = np.array([self.x, self.y])
+            goal_pos = np.array(self.goal)
+            dist_to_goal = np.linalg.norm(goal_pos - current_pos)
+            
+            # 如果距离较远，允许保持当前速度
+            # 如果距离较近，则减速
+            if dist_to_goal < 2.0:
+                # 在近距离时减速
+                self.vx *= 0.5
+                self.vy *= 0.5
+                self.velocity = math.hypot(self.vx, self.vy)
 
 
     def init_obstacles(self):
@@ -685,44 +690,64 @@ class CarController:
 
     def motion_model(self, state, control, dt):
         """车辆运动模型：state = [x, y, vx, vy]. control = [ax_control, ay_control]. 包含基于当前速度的阻力项。"""
-        # Vehicle motion model: state = [x, y, vx, vy]. control = [ax_control, ay_control]. Includes a velocity-dependent resistance term.
-        # state = [x, y, vx, vy]
-        # control = [ax_control, ay_control] - This is the *control* acceleration commanded by the optimizer
-
         x, y, vx, vy = state
         ax_control, ay_control = control
 
-        # *** 计算阻力加速度 ***
-        # *** Calculate Resistance Acceleration ***
-        # Resistance force is proportional to velocity and opposite direction: F_res = -k * v
-        # Assuming mass=1 for simplicity, acceleration_res = -k * v
+        # 计算到目标点的距离和方向
+        if self.goal is not None:
+            goal_pos = np.array(self.goal)
+            current_pos = np.array([x, y])
+            dist_to_goal = np.linalg.norm(goal_pos - current_pos)
+            direction_to_goal = (goal_pos - current_pos) / (dist_to_goal + 1e-6)  # 避免除以零
+            
+            # 根据距离动态调整加速度
+            # 当距离大于5米时，使用最大加速度
+            # 当距离小于2米时，开始减速
+            if dist_to_goal > 5.0:
+                accel_scale = 1.0  # 最大加速度
+            elif dist_to_goal < 2.0:
+                # 在2米内开始减速，距离越近减速越快
+                accel_scale = dist_to_goal / 2.0
+            else:
+                # 在2-5米之间平滑过渡
+                accel_scale = 1.0
+            
+            # 应用加速度缩放
+            ax_control *= accel_scale
+            ay_control *= accel_scale
+
+            # 确保加速度方向指向目标点
+            current_speed = math.hypot(vx, vy)
+            if current_speed < self.max_speed:
+                # 如果速度未达到最大值，增加加速度
+                ax_control += direction_to_goal[0] * self.max_accel * 0.5
+                ay_control += direction_to_goal[1] * self.max_accel * 0.5
+
+        # 计算阻力加速度
         ax_resistance = -self.resistance_coeff * vx
         ay_resistance = -self.resistance_coeff * vy
 
-        # *** 计算净加速度 ***
-        # *** Calculate Net Acceleration ***
-        # Net acceleration is the sum of control acceleration and resistance acceleration
+        # 计算净加速度
         net_ax = ax_control + ax_resistance
         net_ay = ay_control + ay_resistance
 
-        # Update velocity using net acceleration and the given time step dt
+        # 更新速度
         next_vx = vx + net_ax * dt
         next_vy = vy + net_ay * dt
 
-        # Apply speed limit *after* acceleration integration
+        # 应用速度限制
         current_speed_sq = next_vx**2 + next_vy**2
         max_speed_sq = self.max_speed**2
         if current_speed_sq > max_speed_sq:
-            # Scale velocity vector down to max_speed magnitude
-            if current_speed_sq > 1e-12: # Avoid division by near zero
+            if current_speed_sq > 1e-12:
                 scale = self.max_speed / math.sqrt(current_speed_sq)
                 next_vx *= scale
                 next_vy *= scale
-            else: # Speed is zero or near zero, no scaling needed
+            else:
                 next_vx = 0.0
                 next_vy = 0.0
 
-        # Update position using the new (potentially limited) velocity and the given time step dt
+        # 更新位置
         next_x = x + next_vx * dt
         next_y = y + next_vy * dt
 
@@ -900,56 +925,6 @@ class CarController:
         return cost
 
 
-    def predict_obstacle_positions(self):
-        """根据历史位置预测障碍物在MPC预测步数内的路径。返回 list of [pos_t0, pos_t1, ..., pos_tN] for each obstacle."""
-        # Predicts obstacle paths over the MPC prediction horizon based on historical positions. Returns list of paths.
-        # Each path is a list of positions: [pos_at_t, pos_at_t+dt, pos_at_t+2*dt, ..., pos_at_t+N*dt]
-        predicted_obstacle_paths = []
-
-        for cluster in self.obstacle_clusters:
-            obstacle_id = cluster['id']
-            current_pos = np.array(cluster['center'])
-            # Start the predicted path with the obstacle's current tracked position
-            predicted_path = [current_pos.tolist()] # Position at time t (current time)
-
-            # Default prediction is stationary (zero velocity)
-            velocity_estimate = np.array([0.0, 0.0])
-
-            # Estimate velocity if enough history points are available (at least 2 points)
-            if obstacle_id in self.obstacle_history and len(self.obstacle_history[obstacle_id]) >= 2:
-                history = self.obstacle_history[obstacle_id]
-                # Use the two most recent history points to calculate a velocity vector
-                pos_latest = np.array(history[-1])
-                pos_previous = np.array(history[-2])
-
-                # Time difference between the last two history points.
-                # Using MPC dt here assumes tracking updates happen roughly aligned with MPC steps,
-                # or that MPC dt is used as the time unit for velocity scaling.
-                history_time_diff_approx = self.dt # Assume history points are approx MPC dt apart
-
-                if history_time_diff_approx > 1e-9: # Avoid division by near zero
-                    velocity_estimate = (pos_latest - pos_previous) / history_time_diff_approx
-
-                # Cap the estimated speed to a maximum value to prevent unrealistic predictions from noise or tracking errors
-                current_est_speed = np.linalg.norm(velocity_estimate)
-                if current_est_speed > self.max_expected_obstacle_speed:
-                    if current_est_speed > 1e-9: # Avoid division by zero
-                        velocity_estimate = (velocity_estimate / current_est_speed) * self.max_expected_obstacle_speed
-                    else:
-                        velocity_estimate = np.array([0.0, 0.0]) # Speed is zero
-
-            # Predict positions for each future time step in the MPC horizon (from step 1 to N)
-            current_predicted_pos = current_pos.copy() # Prediction starts from current position
-            for i in range(self.prediction_horizon):
-                # Predict the position at the next time step (t + (i+1)*dt) assuming constant velocity
-                current_predicted_pos = current_predicted_pos + velocity_estimate * self.dt
-                predicted_path.append(current_predicted_pos.tolist()) # Add position at t + (i+1)*dt
-
-            predicted_obstacle_paths.append(predicted_path)
-
-        return predicted_obstacle_paths
-
-
     def solve_mpc(self, x0, goal, predicted_obstacle_paths):
         """求解 MPC 控制序列。"""
         # Solves for the MPC control sequence.
@@ -993,67 +968,57 @@ class CarController:
 
     def update_movement(self, dt):
         """使用MPC求解得到的控制量更新车辆状态。"""
-        # Updates vehicle state using the control command obtained from the MPC solver.
-        # dt: actual time passed since the last frame (variable)
-
-        # Get the current state of the vehicle
         current_state = np.array([self.x, self.y, self.vx, self.vy])
 
-        # Predict the paths of obstacles over the MPC horizon based on current tracking data
+        # 预测障碍物路径
         predicted_obstacle_paths = self.predict_obstacle_positions()
 
-        # Solve the MPC problem to get the optimal control sequence for the current state and predicted obstacles
-        # solve_mpc also updates self.mpc_trajectory internally
+        # 求解MPC问题
         u_flat = self.solve_mpc(current_state, self.goal, predicted_obstacle_paths)
 
-        # Extract the *first* control command [ax0, ay0] from the optimized sequence
-        # This is the commanded acceleration to apply for the duration of the actual frame dt.
+        # 提取第一个控制命令
         commanded_ax = 0.0
         commanded_ay = 0.0
 
         if u_flat is not None and len(u_flat) >= 2:
             commanded_ax = u_flat[0]
             commanded_ay = u_flat[1]
-        # If u_flat is None or too short (e.g., solve_mpc failed and returned zeros), commanded_ax/ay remain 0.0
 
-        # Calculate the resistance acceleration based on the *current* velocity
+        # 计算阻力加速度
         resistance_ax = -self.resistance_coeff * self.vx
         resistance_ay = -self.resistance_coeff * self.vy
 
-        # Calculate the net acceleration applied to the vehicle in this frame
-        # This is the sum of the commanded acceleration from MPC and the resistance acceleration
+        # 计算净加速度
         net_ax = commanded_ax + resistance_ax
         net_ay = commanded_ay + resistance_ay
 
-        # Update velocity based on the net acceleration and the actual frame time step dt
+        # 更新速度
         self.vx += net_ax * dt
         self.vy += net_ay * dt
 
-        # Apply the speed limit *after* updating the velocity
+        # 应用速度限制
         current_speed = math.hypot(self.vx, self.vy)
         if current_speed > self.max_speed:
-            # Scale the velocity vector back down to the maximum speed magnitude
-            if current_speed > 1e-12: # Avoid division by near zero
+            if current_speed > 1e-12:
                 scale = self.max_speed / current_speed
                 self.vx *= scale
                 self.vy *= scale
-            else: # Speed is zero or near zero, set to zero explicitly to prevent NaNs
+            else:
                 self.vx = 0.0
                 self.vy = 0.0
 
-        # Update the scalar velocity display variable
+        # 更新标量速度显示
         self.velocity = math.hypot(self.vx, self.vy)
 
-        # Update position based on the new velocity and the actual frame time step dt
+        # 更新位置
         self.x += self.vx * dt
         self.y += self.vy * dt
 
-        # Add the current position to the trajectory history for visualization
+        # 更新轨迹历史
         self.trajectory.append((self.x, self.y))
-        # Limit the length of the trajectory displayed
         max_trajectory_length = 500
         if len(self.trajectory) > max_trajectory_length:
-            self.trajectory.pop(0) # Remove the oldest position
+            self.trajectory.pop(0)
 
 
     def check_collision(self, obstacle_positions):
@@ -1202,16 +1167,22 @@ class CarController:
                 goal_pos_np = np.array(self.goal)
                 dist_to_goal = np.linalg.norm(car_pos_np - goal_pos_np)
                 info_str += f"\nGoal: ({self.goal[0]:.1f}, {self.goal[1]:.1f}) Distance: {dist_to_goal:.1f} m"
-                # Check if the goal has been reached
-                if dist_to_goal < self.car_radius + 0.5: # Use a small tolerance
-                    # Stop the vehicle upon reaching the goal
-                    self.vx = 0.0
-                    self.vy = 0.0
-                    self.velocity = 0.0
-                    self.goal = None # Clear the goal
-                    self.goal_marker.set_data([], []) # Hide the goal marker
-                    info_str += "\nGoal Reached!"
-                    print("Goal reached! Vehicle stopped.")
+                
+                # 当距离目标点很近时，逐渐减速而不是突然停止
+                if dist_to_goal < 2:  # 接近目标点
+                    # 计算减速因子，距离越近减速越快
+                    decel_factor = 0.9
+                    # 应用减
+                    self.vx *= decel_factor
+                    self.vy *= decel_factor
+                    self.velocity = math.hypot(self.vx, self.vy)
+                    
+                    # 只有当速度非常小时才清除目标点
+                    if self.velocity < 0.1:  # 速度阈值
+                        self.goal = None  # 清除目标点
+                        self.goal_marker.set_data([], [])  # 隐藏目标点标记
+                        info_str += "\nGoal Reached!"
+                        print("Goal reached! Vehicle stopped smoothly.")
 
             # Update the info text display
             self.info_text.set_text(info_str)
@@ -1261,6 +1232,8 @@ class CarController:
         """显示matplotlib窗口并启动动画"""
         # Displays the matplotlib window and starts the animation
         plt.show()
+        # 按下q键退出
+        plt.close()
 
 # 运行系统
 # Run the system
