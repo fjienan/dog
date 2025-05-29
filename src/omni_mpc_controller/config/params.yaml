@@ -40,5 +40,5 @@ car_controller:
     # 历史轨迹最大长度
     max_history_length: 10.0
     # 预测时域长度，用于轨迹规划
-    prediction_horizon: 5.0
+    prediction_horizon: 5
     

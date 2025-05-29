@@ -5,6 +5,7 @@ from sensor_msgs.msg import LaserScan
 import rclpy
 from rclpy.node import Node
 import numpy as np
+from tf_transformations import quaternion_from_euler
 from sklearn.cluster import DBSCAN
 from scipy.optimize import linear_sum_assignment
 from scipy.optimize import minimize
@@ -58,7 +59,7 @@ class CarController(Node):
                 ('boundary_safe_distance', 0.0),
                 ('avoidance_margin', 0.0),
                 ('warning_zone_distance', 0.0),
-                ('prediction_horizon', 0.0),
+                ('prediction_horizon', 0),
                 ('world_size', [0.00,0.00]),
                 ('dbscan_eps', 0.0),
                 ('dbscan_min_samples', 0),
@@ -73,7 +74,7 @@ class CarController(Node):
         self.max_speed = self.get_parameter('max_speed').get_parameter_value().double_value
         self.acceleration = self.get_parameter('max_accel').get_parameter_value().double_value # This parameter is not currently used by the MPC logic, which commands acceleration directly
         self.trajectory = []
-        self.prediction_horizon = self.get_parameter('prediction_horizon').get_parameter_value().double_value
+        self.prediction_horizon = self.get_parameter('prediction_horizon').get_parameter_value().integer_value
         self.max_accel = self.get_parameter('max_accel').get_parameter_value().double_value
         self.weight_goal = self.get_parameter('weight_goal').get_parameter_value().double_value        # Velocity matching weight (optional, makes the car tend towards a certain speed related to manual direction)
         self.weight_velocity = self.get_parameter('weight_velocity').get_parameter_value().double_value # Weight for velocity tracking in manual mode
@@ -98,6 +99,11 @@ class CarController(Node):
         self.max_expected_obstacle_speed = self.get_parameter('max_expected_obstacle_speed').get_parameter_value().double_value
         self.x_initial = 0.0
         self.y_initial = 0.0
+        self.x = 0.0
+        self.y = 0.0 
+        self.theta = 0.0
+        self.goal = [0,0]
+
         self.get_logger().info(f"""dt: {self.dt}
         max_speed: {self.max_speed}
         max_accel: {self.max_accel}
@@ -123,7 +129,7 @@ class CarController(Node):
 
         """发布决策信息,其中的消息类型需要根据需求进行修改"""
         self.publisher_ = self.create_publisher(
-            PoseStamped,
+            Twist,
             '/mpc_decision',
             10
         )
@@ -132,11 +138,27 @@ class CarController(Node):
         # 获取激光雷达数据并且进行可视化，使用matplotlib
         # self.get_logger().info('Laser scan received')
         # 计算距离最近的障碍物距离
-        self.laser = msg.ranges  
+        self.laser = msg.ranges 
+
+        if len(self.laser) != 0:
+            self.get_logger().info("--------------------------------Laser scan received--------------------------------")
+            for i in range(len(self.laser)):
+                if self.laser[i] > 100: 
+                    self.laser[i] = 0
+        else:
+            self.get_logger().info("--------------------------------No No No No--------------------------------: No laser data")
+            
     def position_callback(self, msg):
         self.x = msg.pose.position.x
         self.y = msg.pose.position.y
-        self.theta = msg.pose.orientation.z
+        quaternion = [
+            msg.pose.orientation.x,
+            msg.pose.orientation.y,
+            msg.pose.orientation.z,
+            msg.pose.orientation.w
+        ]
+        self.theta = euler_from_quaternion(quaternion)[2]
+        
 
     def convert_polar_to_cartesian(self, angle_deg_relative, distance, car_x, car_y, car_theta_rad):
         """将相对于小车的极坐标点 (角度(度), 距离) 转换为世界坐标系的 (x, y)。"""
@@ -150,7 +172,7 @@ class CarController(Node):
         #激光编号顺序为逆时针旋转
         world_x = car_x + distance * math.cos(angle_rad_world)
         world_y = car_y - distance * math.sin(angle_rad_world)
-        return (world_x, world_y)
+        return [world_x, world_y]
 
 
     def cluster_scan_points(self):
@@ -164,7 +186,7 @@ class CarController(Node):
         # # Convert raw scan data (angle, distance) to world coordinates (x, y)
         # # 将原始雷达数据（角度，距离）转换为世界坐标（x，y）点
         world_scan_points = [
-            self.convert_polar_to_cartesian(i, self.laser[i], self.x, self.y, self.theta)
+            self.convert_polar_to_cartesian(i - 180, self.laser[i], self.x, self.y, self.theta)
             for i in range(len(self.laser))
         ]
         # # Store points for plotting
@@ -338,6 +360,68 @@ class CarController(Node):
         # Ensure alpha is strictly between 0 and 1 (although clip should handle this)
         return np.clip(alpha, 0.0, 1.0)
 
+    def motion_model(self, state, control, dt):
+        """车辆运动模型：state = [x, y, vx, vy]. control = [ax_control, ay_control]. 包含基于当前速度的阻力项。"""
+        x, y, vx, vy = state
+        ax_control, ay_control = control
+
+        # 计算到目标点的距离和方向
+        if self.goal is not None:
+            goal_pos = np.array(self.goal)
+            current_pos = np.array([x, y])
+            dist_to_goal = np.linalg.norm(goal_pos - current_pos)
+            direction_to_goal = (goal_pos - current_pos) / (dist_to_goal + 1e-6)  # 避免除以零
+            
+            # 根据距离动态调整加速度
+            # 当距离大于5米时，使用最大加速度
+            # 当距离小于2米时，开始减速
+            if dist_to_goal > 5.0:
+                accel_scale = 1.0  # 最大加速度
+            elif dist_to_goal < 2.0:
+                # 在2米内开始减速，距离越近减速越快
+                accel_scale = dist_to_goal / 2.0
+            else:
+                # 在2-5米之间平滑过渡
+                accel_scale = 1.0
+            
+            # 应用加速度缩放
+            ax_control *= accel_scale
+            ay_control *= accel_scale
+
+            # 确保加速度方向指向目标点
+            current_speed = math.hypot(vx, vy)
+            if current_speed < self.max_speed:
+                # 如果速度未达到最大值，增加加速度
+                ax_control += direction_to_goal[0] * self.max_accel * 0.5
+                ay_control += direction_to_goal[1] * self.max_accel * 0.5
+
+
+        # 计算净加速度
+        net_ax = ax_control 
+        net_ay = ay_control 
+
+        # 更新速度
+        next_vx = vx + net_ax * dt
+        next_vy = vy + net_ay * dt
+
+        # 应用速度限制
+        current_speed_sq = next_vx**2 + next_vy**2
+        max_speed_sq = self.max_speed**2
+        if current_speed_sq > max_speed_sq:
+            if current_speed_sq > 1e-12:
+                scale = self.max_speed / math.sqrt(current_speed_sq)
+                next_vx *= scale
+                next_vy *= scale
+            else:
+                next_vx = 0.0
+                next_vy = 0.0
+
+        # 更新位置
+        next_x = x + next_vx * dt
+        next_y = y + next_vy * dt
+
+        return np.array([next_x, next_y, next_vx, next_vy])
+
 
     def mpc_cost(self, u_flat, x0, goal, predicted_obstacle_paths):
         """MPC 优化目标函数。u_flat是展平的控制输入 [ax0, ay0, ax1, ay1, ...]."""
@@ -459,10 +543,10 @@ class CarController(Node):
             # Penalize getting too close to the world boundaries
             boundary_cost_step = 0.0
             # Calculate distance to each boundary
-            dist_left = state[0] - (-self.world_size)
-            dist_right = self.world_size - state[0]
-            dist_bottom = state[1] - (-self.world_size)
-            dist_top = self.world_size - state[1]
+            dist_left = state[0] - (-self.world_size[0])
+            dist_right = self.world_size[0] - state[0]
+            dist_bottom = state[1] - (-self.world_size[1])
+            dist_top = self.world_size[1] - state[1]
 
             boundary_safe_distance = self.boundary_safe_distance
 
@@ -574,6 +658,7 @@ class CarController(Node):
             self.mpc_trajectory = []
             return np.zeros(self.prediction_horizon * 2) # Return zero control for all steps
     def time_callback(self):
+        
         self.obstacle_centers = self.cluster_scan_points()
         self.track_obstacles(self.obstacle_centers, self.dt)
         self.vx = (self.x - self.x_initial) / self.dt
