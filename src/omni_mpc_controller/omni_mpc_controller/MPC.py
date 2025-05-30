@@ -107,6 +107,8 @@ class CarController(Node):
         self.y_initial = 0.0
         self.x = 0.0
         self.y = 0.0 
+        self.vx_initial = 0.0
+        self.vy_initial = 0.0
         self.theta = 0.0
         self.goal = [0,0]
 
@@ -691,8 +693,10 @@ class CarController(Node):
 
         #发送数据到决策节点，其中消息类型需要根据需求进行修改
         msg = Twist()
-        commanded_vx = u_flat[0] * self.dt
-        commanded_vy = u_flat[1] * self.dt
+        commanded_vx = u_flat[0] * self.dt + self.vx_initial
+        commanded_vy = u_flat[1] * self.dt + self.vy_initial
+        self.vx_initial = commanded_vx
+        self.vy_initial = commanded_vy 
         msg.linear.x = commanded_vx
         msg.linear.y = commanded_vy
         msg.angular.z = 0.0
