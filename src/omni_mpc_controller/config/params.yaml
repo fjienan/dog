@@ -41,4 +41,11 @@ car_controller:
     max_history_length: 10.0
     # 预测时域长度，用于轨迹规划
     prediction_horizon: 5
+
+keyboard_coordinate_publisher:
+  ros__parameters:
+    # 消息发布周期希望与 MPC 循环周期一致， 单位：秒 
+    dt: 0.1 
+    # 世界尺寸 [长，宽], 单位：米
+    world_size: [15.00,8.00]
     

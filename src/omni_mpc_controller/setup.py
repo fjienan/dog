@@ -8,6 +8,7 @@ package_name = 'omni_mpc_controller'
 data_files = [
     ('share/ament_index/resource_index/packages', ['resource/' + package_name]),
     ('share/' + package_name, ['package.xml']),
+    (os.path.join('share', package_name, 'launch'), glob('launch/*.launch.py')),
     # 添加 config 文件夹中的所有文件
     (os.path.join('share', package_name, 'config'), glob('config/*')),
     # 如果有 launch 文件，也可以添加
@@ -29,7 +30,8 @@ setup(
     entry_points={
         'console_scripts': [
             'omni_mpc_controller_node = omni_mpc_controller.omni_mpc_controller_node:main',
-            'MPC = omni_mpc_controller.MPC:main'
+            'MPC = omni_mpc_controller.MPC:main',
+            'keyboard_control = omni_mpc_controller.keyboard_control:main'
         ],
     },
 )

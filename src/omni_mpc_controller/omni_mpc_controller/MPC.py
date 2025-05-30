@@ -1,6 +1,6 @@
 
 import math
-from geometry_msgs.msg import PoseStamped,Twist
+from geometry_msgs.msg import PoseStamped, Twist, Point
 from sensor_msgs.msg import LaserScan
 import rclpy
 from rclpy.node import Node
@@ -41,6 +41,12 @@ class CarController(Node):
             PoseStamped,
             '/laser_position',
             self.position_callback,
+            10
+        )
+        self.keyboard_control = self.create_subscription(
+            Point,
+            '/input_coordinates',
+            self.goal_callback,
             10
         )
         self.declare_parameters(
@@ -104,7 +110,8 @@ class CarController(Node):
         self.theta = 0.0
         self.goal = [0,0]
 
-        self.get_logger().info(f"""dt: {self.dt}
+        self.get_logger().info(f"""
+        dt: {self.dt}
         max_speed: {self.max_speed}
         max_accel: {self.max_accel}
         weight_goal: {self.weight_goal}
@@ -159,6 +166,9 @@ class CarController(Node):
         ]
         self.theta = euler_from_quaternion(quaternion)[2]
         
+    def goal_callback(self, msg):
+        self.goal[0] = msg.x
+        self.goal[1] = mag.y
 
     def convert_polar_to_cartesian(self, angle_deg_relative, distance, car_x, car_y, car_theta_rad):
         """将相对于小车的极坐标点 (角度(度), 距离) 转换为世界坐标系的 (x, y)。"""
@@ -447,7 +457,7 @@ class CarController(Node):
         obstacle_cost_weight_scaled = alpha * self.weight_obstacle
         # Goal/Manual cost is prioritized when alpha is low
         # Use goal weight if a goal is set, otherwise use velocity weight for manual control
-        goal_or_manual_weight_scaled = (1.0 - alpha) * (self.weight_goal if goal is not None else self.weight_velocity)
+        goal_or_manual_weight_scaled = (1.0 - alpha) * (self.weight_goal if self.goal is not None else self.weight_velocity)
 
 
         # Iterate through each step in the MPC prediction horizon
@@ -475,9 +485,9 @@ class CarController(Node):
 
             # 1. Goal/Manual Control Cost (Weighted by 1-alpha)
             goal_or_manual_cost_step = 0.0
-            if goal is not None:
+            if self.goal is not None:
                 # If a goal is set, penalize distance to the goal (which is static)
-                dist_to_goal = np.linalg.norm(state[:2] - goal)
+                dist_to_goal = np.linalg.norm(state[:2] - self.goal)
                 goal_or_manual_cost_step = dist_to_goal**2 # Quadratic penalty for distance
             else:
                 # If no goal is set, penalize deviation from the desired manual velocity
@@ -625,7 +635,7 @@ class CarController(Node):
         # goal: Target position [gx, gy] or None
         # predicted_obstacle_paths: List of predicted paths for obstacles over the MPC horizon
 
-        effective_goal = np.array(goal) if goal is not None else None
+        effective_goal = np.array(self.goal) if goal is not None else None
         # Initial guess for control inputs (zero acceleration for all steps)
         u0 = np.zeros(self.prediction_horizon * 2) # 2 control inputs (ax, ay) per step
         # Bounds for control inputs (limit acceleration magnitude for each axis, for each step)
