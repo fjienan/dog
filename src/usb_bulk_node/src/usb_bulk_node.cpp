@@ -3,6 +3,7 @@
 
 #include <geometry_msgs/msg/vector3.hpp>         // 角速度和加速度
 #include <geometry_msgs/msg/quaternion.hpp>      // 四元数
+#include <geometry_msgs/msg/point.hpp>           // 五点坐标
 
 #include "ares_protocol.hpp"
 #include <iostream>
@@ -15,6 +16,7 @@
 #define ACCEL_NODE_ID 0x1001
 #define GYRO_NODE_ID 0x1002
 #define QUATERNION_NODE_ID 0x1003
+#define FIVE_FUNC_ID 0x4004
 
 
 class SubscriberNode : public rclcpp::Node {
@@ -100,7 +102,6 @@ public:
             return;
         }
         
-        // 修复 #1: 使用 std::bind 绑定成员函数和 this 指针
         this->proto.register_sync_callback(
             std::bind(&SubscriberNode::sync_handler, this, 
                       std::placeholders::_1, 
@@ -109,13 +110,14 @@ public:
         
         subscription_ = this->create_subscription<geometry_msgs::msg::Twist>(
             "/cmd_vel", 10, std::bind(&SubscriberNode::topic_callback, this, std::placeholders::_1));
+		five_func_subscription_ = this->create_subscription<geometry_msgs::msg::Point>(
+			"/five_func", 10, std::bind(&SubscriberNode::five_func_callback, this, std::placeholders::_1));
         
         // 创建发布者
         angular_vel_pub_ = create_publisher<geometry_msgs::msg::Vector3>("/imu/angular_velocity", 10);
         acceleration_pub_ = create_publisher<geometry_msgs::msg::Vector3>("/imu/acceleration", 10);
         quaternion_pub_ = create_publisher<geometry_msgs::msg::Quaternion>("/imu/quaternion", 10);
         
-        // 修复 #2: 使用 SubscriberNode 而不是 PublisherNode
         timer_ = create_wall_timer(
             std::chrono::milliseconds(5),
             std::bind(&SubscriberNode::timer_callback, this)
@@ -129,6 +131,23 @@ public:
 private:
     std::chrono::milliseconds ms;
     std::chrono::steady_clock::time_point prev_exec;
+
+	void five_func_callback(const geometry_msgs::msg::Point::SharedPtr msg) {
+		// Convert double to float, then reinterpret as uint32_t
+        float float_arg1 = static_cast<float>(msg->x);
+        float float_arg2 = -static_cast<float>(msg->y);
+
+        // Reinterpret the float's binary representation as uint32_t
+        uint32_t arg1 = *reinterpret_cast<uint32_t*>(&float_arg1);
+        uint32_t arg2 = *reinterpret_cast<uint32_t*>(&float_arg2);
+
+		// Send the command
+		int err = this->proto.send_exec(FIVE_FUNC_ID, arg1, arg2, 0xFFFF, 0x01);
+		if (!err) {
+			this->proto.connect();
+			std::cerr << "Failed to send Exec command: " << err << std::endl;
+		}
+	}
 
     void topic_callback(const geometry_msgs::msg::Twist::SharedPtr msg) {
         // Convert double to float, then reinterpret as uint32_t
@@ -193,6 +212,7 @@ private:
     }
 
     rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr subscription_;
+	rclcpp::Subscription<geometry_msgs::msg::Point>::SharedPtr five_func_subscription_;
     rclcpp::Publisher<geometry_msgs::msg::Vector3>::SharedPtr angular_vel_pub_;
     rclcpp::Publisher<geometry_msgs::msg::Vector3>::SharedPtr acceleration_pub_;
     rclcpp::Publisher<geometry_msgs::msg::Quaternion>::SharedPtr quaternion_pub_;
@@ -200,7 +220,8 @@ private:
     geometry_msgs::msg::Vector3 angular_vel;
     geometry_msgs::msg::Vector3 acceleration;
     geometry_msgs::msg::Quaternion quaternion;
-    
+    geometry_msgs::msg::Point five_coordinate;
+
     bool angular_vel_flag = false;
     bool acceleration_flag = false;
     bool quaternion_flag = false;
